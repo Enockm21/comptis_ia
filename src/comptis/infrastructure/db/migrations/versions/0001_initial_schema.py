@@ -108,9 +108,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DROP POLICY IF EXISTS membership_access ON tenants")
+    op.execute("DROP POLICY IF EXISTS org_access ON tenants")
+    op.execute("DROP POLICY IF EXISTS user_own_memberships ON memberships")
     op.execute("DROP FUNCTION IF EXISTS organization_id_of_tenant(uuid)")
     op.drop_table("memberships")
     op.drop_table("users")
     op.drop_table("tenants")
     op.drop_table("organizations")
+    op.execute("REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM comptis_app")
+    op.execute("REVOKE USAGE ON SCHEMA public FROM comptis_app")
     op.execute("DROP ROLE IF EXISTS comptis_app")
