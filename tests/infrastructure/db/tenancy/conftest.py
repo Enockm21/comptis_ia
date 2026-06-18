@@ -5,6 +5,11 @@ from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
+# These engines are session-scoped to avoid re-creating a Postgres container per test.
+# Any test module using admin_engine/app_engine/db_session must set
+# `pytestmark = pytest.mark.asyncio(loop_scope="session")` or it will hit a
+# cross-event-loop RuntimeError from asyncpg.
+
 
 @pytest.fixture(scope="session")
 def pg_container():

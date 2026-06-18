@@ -13,8 +13,9 @@ async def set_tenant_context(
 ) -> None:
     """Set Postgres session variables for RLS. Must be called inside an open transaction.
 
-    Uses SET LOCAL so variables are scoped to the current transaction only —
-    safe with connection pooling in transaction mode.
+    Uses set_config(name, value, true) — the parameterizable equivalent of SET LOCAL —
+    so variables are scoped to the current transaction only, safe with connection
+    pooling in transaction mode.
     """
     vars_to_set = {
         "app.current_tenant_id": tenant_id,
