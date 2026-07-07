@@ -10,10 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from comptis.domain.tenancy.entities import Organization, Tenant
 from comptis.domain.tenancy.value_objects import OrgType
 from comptis.infrastructure.db.models import TenantModel, OrganizationModel
-from comptis.infrastructure.db.repositories import (
-    SQLAlchemyOrganizationRepository,
-    SQLAlchemyTenantRepository,
-)
 from comptis.infrastructure.db.tenant_context import set_tenant_context
 
 
