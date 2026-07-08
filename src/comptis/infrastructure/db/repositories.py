@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from comptis.domain.tenancy.entities import Membership, Organization, Tenant, User
 from comptis.domain.tenancy.value_objects import OrgType, Role
 
-from .models import MembershipModel, OrganizationModel, TenantModel, UserModel
+from .models import ApiKeyModel, MembershipModel, OrganizationModel, TenantModel, UserModel
 
 
 def _org_to_domain(m: OrganizationModel) -> Organization:
@@ -78,6 +78,20 @@ class SQLAlchemyUserRepository:
         model = result.scalar_one_or_none()
         return _user_to_domain(model) if model else None
 
+    async def save_with_credentials(self, user: User, password_hash: str) -> None:
+        model = UserModel(
+            id=user.id, email=user.email,
+            password_hash=password_hash, created_at=user.created_at,
+        )
+        self._session.add(model)
+        await self._session.flush()
+
+    async def get_password_hash(self, user_id: UUID) -> str | None:
+        result = await self._session.execute(
+            select(UserModel.password_hash).where(UserModel.id == user_id)
+        )
+        return result.scalar_one_or_none()
+
 
 class SQLAlchemyMembershipRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -113,3 +127,20 @@ class SQLAlchemyMembershipRepository:
         )
         model = result.scalar_one_or_none()
         return _membership_to_domain(model) if model else None
+
+
+class SQLAlchemyApiKeyRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def save(self, api_key_id: UUID, organization_id: UUID, name: str, key_hash: str) -> None:
+        from datetime import datetime, timezone
+        model = ApiKeyModel(
+            id=api_key_id,
+            organization_id=organization_id,
+            name=name,
+            key_hash=key_hash,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        self._session.add(model)
+        await self._session.flush()
