@@ -20,6 +20,7 @@ def upgrade() -> None:
         "users",
         sa.Column("password_hash", sa.String(255), nullable=False, server_default=""),
     )
+    op.alter_column("users", "password_hash", server_default=None)   # drop default after backfill
     op.create_table(
         "api_keys",
         sa.Column("id", sa.Uuid, primary_key=True),
@@ -33,10 +34,12 @@ def upgrade() -> None:
         sa.Column("key_hash", sa.String(64), nullable=False, unique=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
+    op.create_index("ix_api_keys_organization_id", "api_keys", ["organization_id"])
     op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON api_keys TO comptis_app")
 
 
 def downgrade() -> None:
     op.execute("REVOKE ALL PRIVILEGES ON api_keys FROM comptis_app")
+    op.drop_index("ix_api_keys_organization_id", table_name="api_keys")
     op.drop_table("api_keys")
     op.drop_column("users", "password_hash")

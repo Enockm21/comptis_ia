@@ -43,7 +43,7 @@ class UserModel(Base):
 
     id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(sa.String(320), nullable=False, unique=True)
-    password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False, server_default="")
+    password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, default=_now
     )
