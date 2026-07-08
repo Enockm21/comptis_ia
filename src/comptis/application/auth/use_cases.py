@@ -52,5 +52,8 @@ class RefreshToken:
         payload = self.token_service.decode(refresh_token)
         if payload.get("type") != "refresh":
             raise InvalidTokenError("not a refresh token")
-        user_id = UUID(payload["sub"])
+        try:
+            user_id = UUID(payload["sub"])
+        except (ValueError, KeyError):
+            raise InvalidTokenError("invalid subject claim")
         return self.token_service.create_access_token(user_id)

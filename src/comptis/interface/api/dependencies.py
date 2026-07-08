@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from comptis.application.auth.exceptions import InvalidTokenError, TokenExpiredError
 from comptis.infrastructure.auth.api_key import get_org_id_for_api_key
 from comptis.infrastructure.auth.jwt import JWTTokenService
+from comptis.infrastructure.auth.password import BcryptPasswordHasher
+from comptis.infrastructure.db.repositories import SQLAlchemyUserRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
 
 _bearer = HTTPBearer(auto_error=False)
@@ -28,6 +30,18 @@ async def get_db_session() -> AsyncSession:
             yield session
 
 
+def get_password_hasher() -> BcryptPasswordHasher:
+    return BcryptPasswordHasher()
+
+
+def get_token_service() -> JWTTokenService:
+    return JWTTokenService()
+
+
+def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> SQLAlchemyUserRepository:
+    return SQLAlchemyUserRepository(session)
+
+
 async def require_user(
     credentials: HTTPAuthorizationCredentials = Security(_bearer),
     session: AsyncSession = Depends(get_db_session),
@@ -38,7 +52,7 @@ async def require_user(
             detail={"code": "not_authenticated", "message": "Authentication required"},
         )
     try:
-        payload = JWTTokenService().decode(credentials.credentials)
+        payload = get_token_service().decode(credentials.credentials)
     except TokenExpiredError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -54,7 +68,13 @@ async def require_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "invalid_token", "message": "Invalid token type"},
         )
-    user_id = UUID(payload["sub"])
+    try:
+        user_id = UUID(payload["sub"])
+    except (ValueError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "invalid_token", "message": "Invalid token"},
+        )
     await set_tenant_context(session, user_id=user_id)
     return user_id
 

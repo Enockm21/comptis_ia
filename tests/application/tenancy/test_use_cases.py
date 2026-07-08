@@ -1,7 +1,5 @@
 from uuid import uuid4
 
-import pytest
-
 from comptis.application.tenancy.use_cases import (
     CreateOrganization,
     CreateTenant,

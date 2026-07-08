@@ -37,7 +37,7 @@ def run_migrations(admin_db_url):
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def app_engine(pg_container):
+async def app_engine(pg_container, run_migrations):
     host = pg_container.get_container_host_ip()
     port = pg_container.get_exposed_port(5432)
     url = f"postgresql+asyncpg://comptis_app:app_secret@{host}:{port}/comptis_test2"

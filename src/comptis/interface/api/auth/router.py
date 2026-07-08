@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from comptis.application.auth.exceptions import (
     EmailAlreadyRegisteredError,
@@ -19,19 +18,22 @@ from comptis.interface.api.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
-from comptis.interface.api.dependencies import get_db_session
+from comptis.interface.api.dependencies import (
+    get_password_hasher,
+    get_token_service,
+    get_user_repository,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 async def register(
-    body: RegisterRequest, session: AsyncSession = Depends(get_db_session)
+    body: RegisterRequest,
+    user_repo: SQLAlchemyUserRepository = Depends(get_user_repository),
+    hasher: BcryptPasswordHasher = Depends(get_password_hasher),
 ) -> UserResponse:
-    use_case = RegisterUser(
-        user_repo=SQLAlchemyUserRepository(session),
-        hasher=BcryptPasswordHasher(),
-    )
+    use_case = RegisterUser(user_repo=user_repo, hasher=hasher)
     try:
         user = await use_case.execute(body.email, body.password)
     except EmailAlreadyRegisteredError:
@@ -44,13 +46,12 @@ async def register(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    body: LoginRequest, session: AsyncSession = Depends(get_db_session)
+    body: LoginRequest,
+    user_repo: SQLAlchemyUserRepository = Depends(get_user_repository),
+    hasher: BcryptPasswordHasher = Depends(get_password_hasher),
+    token_service: JWTTokenService = Depends(get_token_service),
 ) -> TokenResponse:
-    use_case = LoginUser(
-        user_repo=SQLAlchemyUserRepository(session),
-        hasher=BcryptPasswordHasher(),
-        token_service=JWTTokenService(),
-    )
+    use_case = LoginUser(user_repo=user_repo, hasher=hasher, token_service=token_service)
     try:
         access_token, refresh_token = await use_case.execute(body.email, body.password)
     except InvalidCredentialsError:
@@ -62,8 +63,11 @@ async def login(
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
-async def refresh(body: RefreshRequest) -> AccessTokenResponse:
-    use_case = RefreshToken(token_service=JWTTokenService())
+async def refresh(
+    body: RefreshRequest,
+    token_service: JWTTokenService = Depends(get_token_service),
+) -> AccessTokenResponse:
+    use_case = RefreshToken(token_service=token_service)
     try:
         access_token = use_case.execute(body.refresh_token)
     except TokenExpiredError:
