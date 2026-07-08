@@ -43,6 +43,7 @@ class UserModel(Base):
 
     id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(sa.String(320), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False, server_default="")
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, default=_now
     )
@@ -64,3 +65,17 @@ class MembershipModel(Base):
     )
 
     __table_args__ = (sa.UniqueConstraint("user_id", "tenant_id", name="uq_membership_user_tenant"),)
+
+
+class ApiKeyModel(Base):
+    __tablename__ = "api_keys"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    organization_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    key_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
