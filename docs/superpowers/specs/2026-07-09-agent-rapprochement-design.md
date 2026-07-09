@@ -172,6 +172,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON reconciliation_patterns TO comptis_app;
 ```python
 class ReconciliationState(TypedDict):
     tenant_id: UUID
+    date_debut: date                      # fenêtre de traitement
+    date_fin: date
     transactions: list[Transaction]       # chargées depuis PNiCompta
     factures: list[Facture]               # chargées depuis PNiCompta
     matches: list[Match]                  # rapprochements confirmés
@@ -193,8 +195,11 @@ fetch ──→ match ──→ (routing conditionnel)
 ### Nœuds
 
 **`fetch`**
-- Bootstrap mémoire : `list_transactions(statut="rapprochee")` + `list_factures(statut="rapprochee")` → upsert patterns
-- Charge données courantes : `list_transactions(statut="non_rapprochee")` + `list_factures(statut="non_rapprochee")`
+- Bootstrap mémoire : `list_transactions(statut="rapprochee")` + `list_factures(statut="rapprochee")` → upsert patterns (une seule fois par tenant, résultat mis en cache)
+- Charge données courantes sur la **fenêtre temporelle** du run :
+  - `list_transactions(statut="non_rapprochee", date_debut=state.date_debut, date_fin=state.date_fin)`
+  - `list_factures(statut="non_rapprochee", date_debut=state.date_debut, date_fin=state.date_fin)`
+- Fenêtre par défaut : `[aujourd'hui − RECONCILIATION_WINDOW_DAYS, aujourd'hui]` (configurable à l'appel)
 
 **`match`** (par transaction)
 1. Lookup mémoire : pattern connu pour ce libellé ?
@@ -246,6 +251,8 @@ mark_rapprochement(facture_id: str, transaction_id: str, statut: str) → None
 RECONCILIATION_CONFIDENCE_THRESHOLD=0.85   # seuil confirm direct
 RECONCILIATION_LLM_LOWER_BOUND=0.50        # en dessous → unmatched direct
 PATTERN_MIN_OCCURRENCES=3                  # nb de confirmations avant boost automatique
+RECONCILIATION_WINDOW_DAYS=7               # fenêtre par défaut (nb jours en arrière)
+RECONCILIATION_WINDOW_MAX_DAYS=90          # plafond de sécurité
 LLM_MODEL=claude-sonnet-5
 PNICOMPTA_MCP_URL=...
 ```
@@ -256,8 +263,13 @@ PNICOMPTA_MCP_URL=...
 
 ```
 POST /reconciliation/run
-  body: { tenant_id }
-  → démarre un run LangGraph, retourne { run_id }
+  body: {
+    tenant_id,
+    date_debut?: date,   # défaut : aujourd'hui − RECONCILIATION_WINDOW_DAYS
+    date_fin?: date      # défaut : aujourd'hui
+  }
+  → démarre un run LangGraph sur la fenêtre demandée, retourne { run_id }
+  → fenêtre plafonnée à RECONCILIATION_WINDOW_MAX_DAYS (90j)
 
 GET /reconciliation/{run_id}/conflicts
   → liste les conflits en attente de décision humaine
