@@ -2,6 +2,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from .base import Base
 
@@ -78,4 +79,22 @@ class ApiKeyModel(Base):
     key_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+
+class ReconciliationPatternModel(Base):
+    __tablename__ = "reconciliation_patterns"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    libelle_pattern: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    fournisseur: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    montant_approx: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=1)
+    last_seen_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+
+    __table_args__ = (
+        sa.UniqueConstraint("tenant_id", "libelle_pattern", "fournisseur", name="uq_rp_tenant_libelle_fournisseur"),
     )
