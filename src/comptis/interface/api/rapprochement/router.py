@@ -85,6 +85,73 @@ async def run_reconciliation(
     )
 
 
+@router.post("/run/{run_id}/resolve", status_code=200)
+async def resolve_conflict(
+    run_id: str,
+    body: ResolveRequest,
+    org_id: uuid.UUID = Depends(require_api_key),
+) -> dict:
+    run = _runs.get(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    pending = list(run.get("pending_review", []))
+    conflict = next((c for c in pending if c.transaction.id == body.conflict_id), None)
+    if conflict is None:
+        raise HTTPException(status_code=404, detail="Conflict not found")
+
+    pending.remove(conflict)
+    matches = list(run.get("matches", []))
+    unmatched = list(run.get("unmatched", []))
+
+    if body.decision == "confirmer" and conflict.facture is not None:
+        from decimal import Decimal
+        from comptis.domain.rapprochement.entities import Match
+        ecart = abs(conflict.transaction.montant - conflict.facture.montant)
+        matches.append(Match(
+            facture_id=conflict.facture.id,
+            transaction_id=conflict.transaction.id,
+            confidence=conflict.composite_score,
+            ecart_montant=ecart,
+            statut="confirme",
+        ))
+    elif body.decision == "ecart_accepte" and conflict.facture is not None:
+        from decimal import Decimal
+        from comptis.domain.rapprochement.entities import Match
+        ecart = abs(conflict.transaction.montant - conflict.facture.montant)
+        matches.append(Match(
+            facture_id=conflict.facture.id,
+            transaction_id=conflict.transaction.id,
+            confidence=conflict.composite_score,
+            ecart_montant=ecart,
+            statut="ecart",
+        ))
+    else:
+        unmatched.append(conflict.transaction)
+
+    run["pending_review"] = pending
+    run["matches"] = matches
+    run["unmatched"] = unmatched
+
+    # Rebuild report once all conflicts resolved
+    if not pending:
+        from comptis.domain.rapprochement.entities import ReconciliationReport
+        from uuid import UUID
+        run["report"] = ReconciliationReport(
+            tenant_id=run["tenant_id"],
+            date_debut=run["date_debut"],
+            date_fin=run["date_fin"],
+            total_transactions=len(matches) + len(unmatched),
+            total_rapprochees=sum(1 for m in matches if m.statut == "confirme"),
+            total_non_rapprochees=len(unmatched),
+            total_ecarts=sum(1 for m in matches if m.statut == "ecart"),
+            matches=matches,
+            unmatched=unmatched,
+        )
+
+    return {"status": "ok", "pending_remaining": len(pending)}
+
+
 @router.get("/run/{run_id}/conflicts", response_model=list[ConflictSchema])
 async def get_conflicts(run_id: str) -> list[ConflictSchema]:
     run = _runs.get(run_id)
