@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import date
 
@@ -11,6 +12,7 @@ from comptis.domain.rapprochement.entities import ReconciliationReport
 from comptis.infrastructure.agents.rapprochement.graph import build_reconciliation_graph
 from comptis.infrastructure.agents.rapprochement.llm_arbiter import LLMArbiter
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
+from comptis.infrastructure.mcp.pnicompta_client import PniComptaClient
 from comptis.interface.api.dependencies import get_db_session, require_api_key
 from comptis.interface.api.rapprochement.schemas import (
     ConflictSchema,
@@ -28,22 +30,10 @@ router = APIRouter(prefix="/reconciliation", tags=["reconciliation"])
 _runs: dict[str, dict] = {}
 
 
-def _build_fake_mcp():
-    """Placeholder MCP client — returns empty lists. Replace with real MCP client."""
-    from comptis.application.rapprochement.ports import McpClient
-    from datetime import date as _date
-    from comptis.domain.rapprochement.entities import Transaction, Facture
-
-    class _FakeMcp:
-        async def list_transactions(self, statut=None, date_debut=None, date_fin=None):
-            return []
-        async def get_transaction(self, id): ...
-        async def list_factures(self, statut=None, date_debut=None, date_fin=None):
-            return []
-        async def get_facture(self, id): ...
-        async def mark_rapprochement(self, facture_id, transaction_id, statut): ...
-
-    return _FakeMcp()
+def _build_mcp_client() -> PniComptaClient:
+    base_url = os.environ.get("PNICOMPTA_API_URL", "http://localhost:8000/api")
+    token = os.environ.get("PNICOMPTA_API_TOKEN", "")
+    return PniComptaClient(base_url=base_url, token=token)
 
 
 @router.post("/run", response_model=RunResponse, status_code=202)
@@ -53,7 +43,7 @@ async def run_reconciliation(
     session: AsyncSession = Depends(get_db_session),
 ) -> RunResponse:
     memory = SQLAlchemyReconciliationPatternRepository(session)
-    mcp_client = _build_fake_mcp()
+    mcp_client = _build_mcp_client()
     use_case = RunReconciliation(mcp_client=mcp_client, memory=memory)
     request = RunReconciliationRequest(
         tenant_id=body.tenant_id,
@@ -63,7 +53,7 @@ async def run_reconciliation(
     date_debut, date_fin = use_case.resolve_window(request)
 
     run_id = str(uuid.uuid4())
-    graph = build_reconciliation_graph(mcp_client, memory)
+    graph = build_reconciliation_graph(mcp_client, memory)  # type: ignore[arg-type]
     initial_state = {
         "tenant_id": body.tenant_id,
         "date_debut": date_debut,
