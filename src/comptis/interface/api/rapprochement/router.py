@@ -13,6 +13,7 @@ from comptis.infrastructure.agents.rapprochement.graph import build_reconciliati
 from comptis.infrastructure.agents.rapprochement.llm_arbiter import LLMArbiter
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
 from comptis.infrastructure.mcp.pnicompta_client import PniComptaClient
+from comptis.infrastructure.mcp.pnicompta_mcp_client import PniComptaMcpClient
 from comptis.interface.api.dependencies import get_db_session, require_api_key
 from comptis.interface.api.rapprochement.schemas import (
     ConflictSchema,
@@ -30,7 +31,15 @@ router = APIRouter(prefix="/reconciliation", tags=["reconciliation"])
 _runs: dict[str, dict] = {}
 
 
-def _build_mcp_client() -> PniComptaClient:
+def _build_mcp_client() -> PniComptaClient | PniComptaMcpClient:
+    """Construit le client selon la config disponible.
+
+    Si PNICOMPTA_MCP_URL est défini → protocole MCP réel (ai-service en HTTP).
+    Sinon → HTTP direct vers l'API REST Django.
+    """
+    mcp_url = os.environ.get("PNICOMPTA_MCP_URL", "")
+    if mcp_url:
+        return PniComptaMcpClient(url=mcp_url)
     base_url = os.environ.get("PNICOMPTA_API_URL", "http://localhost:8000/api")
     token = os.environ.get("PNICOMPTA_API_TOKEN", "")
     return PniComptaClient(base_url=base_url, token=token)
