@@ -13,19 +13,17 @@ from comptis.domain.rapprochement.entities import Facture, Transaction
 
 
 class PniComptaMcpClient:
-    """Client MCP (protocol réel) vers le serveur ai-service de PNiCompta.
+    """Client MCP (protocol réel) vers le serveur PNiCompta monté à /mcp.
 
-    Configure MCP_TRANSPORT=streamable-http sur le serveur PNiCompta,
-    puis pointe PNICOMPTA_MCP_URL vers http://host:port/mcp.
+    Pointe PNICOMPTA_MCP_URL vers https://host/mcp et fournit
+    PNICOMPTA_API_TOKEN comme clé de service (Bearer cpt_...).
 
-    Ce client implémente le même contrat que PniComptaClient (HTTP direct)
-    mais passe par le protocole MCP — utile pour combiner accès données
-    et outils AI dans un même canal.
+    Implémente le même contrat que PniComptaClient (HTTP direct).
     """
 
-    def __init__(self, url: str) -> None:
-        # ex: http://localhost:8001/mcp
+    def __init__(self, url: str, api_key: str = "") -> None:
         self._url = url
+        self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
     # ------------------------------------------------------------------
     # Transactions
@@ -126,7 +124,7 @@ class PniComptaMcpClient:
                 "Installez-le avec : uv sync --group mcp"
             ) from exc
 
-        async with streamablehttp_client(self._url) as (read, write, _):
+        async with streamablehttp_client(self._url, headers=self._headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(tool_name, arguments)

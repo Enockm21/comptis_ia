@@ -39,7 +39,8 @@ def _build_mcp_client() -> PniComptaClient | PniComptaMcpClient:
     """
     mcp_url = os.environ.get("PNICOMPTA_MCP_URL", "")
     if mcp_url:
-        return PniComptaMcpClient(url=mcp_url)
+        api_key = os.environ.get("PNICOMPTA_API_TOKEN", "")
+        return PniComptaMcpClient(url=mcp_url, api_key=api_key)
     base_url = os.environ.get("PNICOMPTA_API_URL", "http://localhost:8000/api")
     token = os.environ.get("PNICOMPTA_API_TOKEN", "")
     return PniComptaClient(base_url=base_url, token=token)
