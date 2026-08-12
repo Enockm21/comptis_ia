@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from comptis.interface.api.admin.integrations.router import router as admin_integrations_router
@@ -24,4 +25,19 @@ async def health() -> dict:
 # Servir le frontend buildé (prod uniquement — ignoré si dist/ n'existe pas)
 _dist = Path(__file__).parent.parent.parent.parent.parent / "frontend" / "dist"
 if _dist.exists():
-    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(_dist / "assets")), name="frontend-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(request: Request, full_path: str) -> FileResponse:
+        """SPA fallback: serve a real static file if it exists on disk (e.g. favicon,
+        manifest), otherwise fall back to index.html so client-side routes like
+        /login or /reconciliation are handled by the React router instead of 404ing.
+
+        Registered after the API routers, so it only matches requests none of them
+        claimed (e.g. FastAPI already 405s /reconciliation/run for GET before this
+        route is ever considered).
+        """
+        candidate = _dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_dist / "index.html")

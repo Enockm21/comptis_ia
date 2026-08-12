@@ -18,6 +18,7 @@ from comptis.infrastructure.db.integration_repository import (
 )
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
+from comptis.infrastructure.db.tenant_context import set_tenant_context
 from comptis.infrastructure.mcp.pnicompta_client import PniComptaClient
 from comptis.infrastructure.mcp.pnicompta_mcp_client import PniComptaMcpClient
 from comptis.interface.api.dependencies import get_db_session, require_user
@@ -86,6 +87,9 @@ async def run_reconciliation(
 ) -> RunResponse:
     tenant = await _require_tenant_access(body.tenant_id, session)
     org_id = tenant.organization_id
+    await set_tenant_context(
+        session, organization_id=org_id, tenant_id=body.tenant_id, user_id=user_id
+    )
 
     memory = SQLAlchemyReconciliationPatternRepository(session)
     mcp_client = await _build_mcp_client_for_org(org_id, session)

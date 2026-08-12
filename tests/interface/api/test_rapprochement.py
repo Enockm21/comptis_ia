@@ -147,6 +147,15 @@ async def test_resolve_conflict_confirms_match_and_builds_report(client, admin_t
 
 
 @pytest.mark.integration
+async def test_resolve_conflict_requires_auth(client):
+    resp = await client.post(
+        "/reconciliation/run/nonexistent/resolve",
+        json={"conflict_id": "whatever", "decision": "rejeter"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.integration
 async def test_resolve_conflict_rejects_run_of_inaccessible_tenant(client, admin_tenant_id: str, user_token: str):
     run_id = _seed_run(admin_tenant_id, [])
 
@@ -162,6 +171,17 @@ async def test_resolve_conflict_rejects_run_of_inaccessible_tenant(client, admin
 async def test_get_report_requires_auth(client):
     resp = await client.get("/reconciliation/run/nonexistent/report")
     assert resp.status_code == 401
+
+
+@pytest.mark.integration
+async def test_get_report_rejects_run_of_inaccessible_tenant(client, admin_tenant_id: str, user_token: str):
+    run_id = _seed_run(admin_tenant_id, [])
+
+    resp = await client.get(
+        f"/reconciliation/run/{run_id}/report",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert resp.status_code == 404
 
 
 @pytest.mark.integration

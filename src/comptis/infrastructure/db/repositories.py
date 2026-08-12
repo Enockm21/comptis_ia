@@ -65,7 +65,8 @@ class SQLAlchemyTenantRepository:
 
     async def list_visible(self, session: AsyncSession) -> list[Tenant]:
         # No WHERE clause — RLS (membership_access) does the filtering under
-        # a require_user session (app.current_organization_id unset).
+        # a require_user session (app.current_organization_id set to a nil UUID
+        # that matches no row).
         result = await session.execute(select(TenantModel))
         return [_tenant_to_domain(m) for m in result.scalars().all()]
 

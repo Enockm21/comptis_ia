@@ -9,7 +9,7 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
       '/admin': 'http://localhost:8000',
       '/auth': 'http://localhost:8000',
-      '/reconciliation': 'http://localhost:8000',
+      '/reconciliation/run': 'http://localhost:8000',
       '/tenants': 'http://localhost:8000',
     },
   },

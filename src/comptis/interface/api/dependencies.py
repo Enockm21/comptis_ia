@@ -77,7 +77,22 @@ async def require_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "invalid_token", "message": "Invalid token"},
         )
-    await set_tenant_context(session, user_id=user_id)
+
+    # Explicitly initialise all three GUC variables before querying.
+    # PostgreSQL leaves a session-level "" for custom GUCs after the first LOCAL
+    # set_config in any prior transaction on this pooled connection. Casting "" to
+    # uuid in a USING clause raises InvalidTextRepresentationError. We use nil UUID
+    # as a safe placeholder for org/tenant (won't match any real row), and the real
+    # user_id so that the user_own_memberships policy can filter correctly.
+    _NIL = "00000000-0000-0000-0000-000000000000"
+    await session.execute(
+        text(
+            "SELECT set_config('app.current_user_id', :uid, true),"
+            "       set_config('app.current_organization_id', :nil, true),"
+            "       set_config('app.current_tenant_id', :nil, true)"
+        ),
+        {"uid": str(user_id), "nil": _NIL},
+    )
     return user_id
 
 
