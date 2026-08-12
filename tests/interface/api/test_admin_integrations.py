@@ -60,6 +60,9 @@ async def test_delete_integration(client, admin_token: str):
     await client.put("/admin/integrations/todelete", json={}, headers=headers)
     resp = await client.delete("/admin/integrations/todelete", headers=headers)
     assert resp.status_code == 204
+    # Verify the row is actually gone
+    list_resp = await client.get("/admin/integrations", headers=headers)
+    assert not any(i["name"] == "todelete" for i in list_resp.json())
 
 
 @pytest.mark.integration

@@ -90,7 +90,7 @@ class SQLAlchemyIntegrationRepository:
     async def delete(self, org_id: UUID, name: str) -> None:
         model = await self._get_model(org_id, name)
         if model:
-            self._session.delete(model)
+            await self._session.delete(model)
             await self._session.flush()
 
     async def get_decrypted_token(self, org_id: UUID, name: str) -> str | None:
