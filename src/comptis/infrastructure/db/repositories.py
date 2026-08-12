@@ -63,6 +63,12 @@ class SQLAlchemyTenantRepository:
         )
         return [_tenant_to_domain(m) for m in result.scalars().all()]
 
+    async def list_visible(self, session: AsyncSession) -> list[Tenant]:
+        # No WHERE clause — RLS (membership_access) does the filtering under
+        # a require_user session (app.current_organization_id unset).
+        result = await session.execute(select(TenantModel))
+        return [_tenant_to_domain(m) for m in result.scalars().all()]
+
 
 class SQLAlchemyUserRepository:
     def __init__(self, session: AsyncSession) -> None:

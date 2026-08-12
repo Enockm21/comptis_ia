@@ -77,3 +77,34 @@ async def test_save_and_retrieve_membership(db_session):
     retrieved = await membership_repo.get(user.id, tenant.id)
     assert retrieved is not None
     assert retrieved.role == Role.ACCOUNTANT
+
+
+@pytest.mark.integration
+async def test_list_visible_returns_only_tenants_with_membership(db_session):
+    org_repo = SQLAlchemyOrganizationRepository(db_session)
+    user_repo = SQLAlchemyUserRepository(db_session)
+    tenant_repo = SQLAlchemyTenantRepository(db_session)
+    membership_repo = SQLAlchemyMembershipRepository(db_session)
+
+    org = Organization(name="Org Visible", type=OrgType.CABINET)
+    await org_repo.save(org)
+    user = User(email=f"user-{uuid4()}@test.fr")
+    await user_repo.save(user)
+
+    # org_access must be true to INSERT the tenants at all
+    await set_tenant_context(db_session, organization_id=org.id, user_id=user.id)
+    tenant_a = Tenant(organization_id=org.id, name="Client Visible")
+    tenant_b = Tenant(organization_id=org.id, name="Client Invisible")
+    await tenant_repo.save(tenant_a)
+    await tenant_repo.save(tenant_b)
+    membership = Membership(user_id=user.id, tenant_id=tenant_a.id, role=Role.ACCOUNTANT)
+    await membership_repo.save(membership)
+
+    # Neutralise org_access by pointing it at an org that owns nothing, so only
+    # membership_access can grant visibility — this mirrors require_user, which
+    # never sets app.current_organization_id at all.
+    await set_tenant_context(db_session, organization_id=uuid4(), user_id=user.id)
+    visible = await tenant_repo.list_visible(db_session)
+    names = {t.name for t in visible}
+    assert "Client Visible" in names
+    assert "Client Invisible" not in names
