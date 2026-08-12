@@ -25,7 +25,13 @@ async def health() -> dict:
 # Servir le frontend buildé (prod uniquement — ignoré si dist/ n'existe pas)
 _dist = Path(__file__).parent.parent.parent.parent.parent / "frontend" / "dist"
 if _dist.exists():
-    app.mount("/assets", StaticFiles(directory=str(_dist / "assets")), name="frontend-assets")
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(_dist / "assets"), check_dir=False),
+        name="frontend-assets",
+    )
+
+    _dist_resolved = _dist.resolve()
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa_fallback(request: Request, full_path: str) -> FileResponse:
@@ -34,10 +40,19 @@ if _dist.exists():
         /login or /reconciliation are handled by the React router instead of 404ing.
 
         Registered after the API routers, so it only matches requests none of them
-        claimed (e.g. FastAPI already 405s /reconciliation/run for GET before this
-        route is ever considered).
+        claimed. Note this means a GET on a POST-only API path (e.g. GET
+        /reconciliation/run) falls through to this handler and returns index.html
+        rather than a 405 — Starlette matches routes on path+method together, so this
+        route's full match wins over the real route's path-only partial match. This
+        is a known, accepted trade-off of the SPA-fallback pattern, not a bug.
+
+        `full_path` is untrusted and must never be joined onto `_dist` without a
+        containment check: percent-encoded dot-segments (e.g. `%2e%2e/%2e%2e/etc/hosts`)
+        or a leading slash from a `//`-prefixed path (Path('/a') / '/etc/passwd' ==
+        Path('/etc/passwd'), pathlib discards the left side) can otherwise escape the
+        served directory entirely.
         """
-        candidate = _dist / full_path
-        if full_path and candidate.is_file():
+        candidate = (_dist / full_path).resolve()
+        if full_path and candidate.is_file() and candidate.is_relative_to(_dist_resolved):
             return FileResponse(candidate)
         return FileResponse(_dist / "index.html")
