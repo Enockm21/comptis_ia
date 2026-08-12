@@ -8,6 +8,13 @@ from uuid import UUID
 from pydantic import BaseModel, field_validator
 
 
+class FactureSchema(BaseModel):
+    id: str
+    montant: Decimal
+    date: date
+    fournisseur: str
+
+
 class RunRequest(BaseModel):
     tenant_id: UUID
     date_debut: date | None = None
@@ -51,6 +58,7 @@ class TransactionSchema(BaseModel):
 
 class ConflictSchema(BaseModel):
     transaction: TransactionSchema
+    facture: FactureSchema | None
     raison: str
     composite_score: float
 

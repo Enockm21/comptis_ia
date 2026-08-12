@@ -17,11 +17,13 @@ from comptis.infrastructure.db.integration_repository import (
     SQLAlchemyIntegrationRepository,
 )
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
+from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.mcp.pnicompta_client import PniComptaClient
 from comptis.infrastructure.mcp.pnicompta_mcp_client import PniComptaMcpClient
-from comptis.interface.api.dependencies import get_db_session, require_api_key
+from comptis.interface.api.dependencies import get_db_session, require_user
 from comptis.interface.api.rapprochement.schemas import (
     ConflictSchema,
+    FactureSchema,
     MatchSchema,
     ReportResponse,
     ResolveRequest,
@@ -69,12 +71,22 @@ async def _build_mcp_client_for_org(
     return PniComptaClient(base_url=base_url, token=api_key)
 
 
+async def _require_tenant_access(tenant_id, session: AsyncSession):
+    tenant = await SQLAlchemyTenantRepository(session).get_by_id(tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return tenant
+
+
 @router.post("/run", response_model=RunResponse, status_code=202)
 async def run_reconciliation(
     body: RunRequest,
-    org_id: uuid.UUID = Depends(require_api_key),
+    user_id: uuid.UUID = Depends(require_user),
     session: AsyncSession = Depends(get_db_session),
 ) -> RunResponse:
+    tenant = await _require_tenant_access(body.tenant_id, session)
+    org_id = tenant.organization_id
+
     memory = SQLAlchemyReconciliationPatternRepository(session)
     mcp_client = await _build_mcp_client_for_org(org_id, session)
     use_case = RunReconciliation(mcp_client=mcp_client, memory=memory)
@@ -112,11 +124,13 @@ async def run_reconciliation(
 async def resolve_conflict(
     run_id: str,
     body: ResolveRequest,
-    org_id: uuid.UUID = Depends(require_api_key),
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict:
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
+    await _require_tenant_access(run["tenant_id"], session)
 
     pending = list(run.get("pending_review", []))
     conflict = next((c for c in pending if c.transaction.id == body.conflict_id), None)
@@ -176,10 +190,15 @@ async def resolve_conflict(
 
 
 @router.get("/run/{run_id}/conflicts", response_model=list[ConflictSchema])
-async def get_conflicts(run_id: str) -> list[ConflictSchema]:
+async def get_conflicts(
+    run_id: str,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[ConflictSchema]:
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
+    await _require_tenant_access(run["tenant_id"], session)
     return [
         ConflictSchema(
             transaction=TransactionSchema(
@@ -188,6 +207,12 @@ async def get_conflicts(run_id: str) -> list[ConflictSchema]:
                 date=c.transaction.date,
                 libelle=c.transaction.libelle,
             ),
+            facture=FactureSchema(
+                id=c.facture.id,
+                montant=c.facture.montant,
+                date=c.facture.date,
+                fournisseur=c.facture.fournisseur,
+            ) if c.facture is not None else None,
             raison=c.raison,
             composite_score=c.composite_score,
         )
@@ -196,10 +221,15 @@ async def get_conflicts(run_id: str) -> list[ConflictSchema]:
 
 
 @router.get("/run/{run_id}/report", response_model=ReportResponse)
-async def get_report(run_id: str) -> ReportResponse:
+async def get_report(
+    run_id: str,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> ReportResponse:
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
+    await _require_tenant_access(run["tenant_id"], session)
     report = run.get("report")
     if report is None:
         raise HTTPException(status_code=404, detail="Report not yet available")
