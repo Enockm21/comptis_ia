@@ -71,10 +71,10 @@ async def _build_mcp_client_for_org(
     return PniComptaClient(base_url=base_url, token=api_key)
 
 
-async def _require_tenant_access(tenant_id, session: AsyncSession):
+async def _require_tenant_access(tenant_id, session: AsyncSession, not_found_detail: str = "Tenant not found"):
     tenant = await SQLAlchemyTenantRepository(session).get_by_id(tenant_id)
     if tenant is None:
-        raise HTTPException(status_code=404, detail="Tenant not found")
+        raise HTTPException(status_code=404, detail=not_found_detail)
     return tenant
 
 
@@ -130,7 +130,7 @@ async def resolve_conflict(
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    await _require_tenant_access(run["tenant_id"], session)
+    await _require_tenant_access(run["tenant_id"], session, not_found_detail="Run not found")
 
     pending = list(run.get("pending_review", []))
     conflict = next((c for c in pending if c.transaction.id == body.conflict_id), None)
@@ -198,7 +198,7 @@ async def get_conflicts(
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    await _require_tenant_access(run["tenant_id"], session)
+    await _require_tenant_access(run["tenant_id"], session, not_found_detail="Run not found")
     return [
         ConflictSchema(
             transaction=TransactionSchema(
@@ -229,7 +229,7 @@ async def get_report(
     run = _runs.get(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
-    await _require_tenant_access(run["tenant_id"], session)
+    await _require_tenant_access(run["tenant_id"], session, not_found_detail="Run not found")
     report = run.get("report")
     if report is None:
         raise HTTPException(status_code=404, detail="Report not yet available")

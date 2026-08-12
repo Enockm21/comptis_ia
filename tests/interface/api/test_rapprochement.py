@@ -104,6 +104,28 @@ async def test_get_conflicts_rejects_run_of_inaccessible_tenant(client, admin_te
 
 
 @pytest.mark.integration
+async def test_get_conflicts_404_detail_does_not_distinguish_missing_from_inaccessible(
+    client, admin_token: str, admin_tenant_id: str, user_token: str
+):
+    """A caller probing run_ids must not be able to tell 'no such run' apart from
+    'run exists but you can't see it' — both cases should 404 with the same body."""
+    inaccessible_run_id = _seed_run(admin_tenant_id, [])
+
+    missing_resp = await client.get(
+        "/reconciliation/run/does-not-exist/conflicts",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    inaccessible_resp = await client.get(
+        f"/reconciliation/run/{inaccessible_run_id}/conflicts",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+
+    assert missing_resp.status_code == 404
+    assert inaccessible_resp.status_code == 404
+    assert missing_resp.json() == inaccessible_resp.json()
+
+
+@pytest.mark.integration
 async def test_resolve_conflict_confirms_match_and_builds_report(client, admin_token: str, admin_tenant_id: str):
     transaction = Transaction(id="t3", montant=Decimal("100.00"), date=date(2026, 1, 15), libelle="ABC SARL")
     facture = Facture(
