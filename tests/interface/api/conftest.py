@@ -1,10 +1,12 @@
 import os
+import uuid as _uuid_module
 
 import pytest
 import pytest_asyncio
 from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
@@ -59,3 +61,51 @@ async def client(app_engine):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def admin_token(client, admin_db_url) -> str:
+    """Register an admin user, seed org+tenant+membership, return JWT."""
+    email = f"admin-{_uuid_module.uuid4()}@test.com"
+    await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
+    resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+
+    # Decode JWT to get user_id
+    from comptis.infrastructure.auth.jwt import JWTTokenService
+    payload = JWTTokenService().decode(token)
+    user_id = payload["sub"]
+
+    # Insert org + tenant + membership(role=admin) via postgres superuser
+    # admin_db_url is already postgresql+psycopg (sync psycopg3 driver)
+    sync_engine = create_engine(admin_db_url)
+    org_id = str(_uuid_module.uuid4())
+    tenant_id = str(_uuid_module.uuid4())
+    membership_id = str(_uuid_module.uuid4())
+    with sync_engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO organizations(id, name, type, created_at) "
+            "VALUES (:id, :name, :type, NOW())"
+        ), {"id": org_id, "name": "Test Org", "type": "company"})
+        conn.execute(text(
+            "INSERT INTO tenants(id, organization_id, name, created_at) "
+            "VALUES (:id, :org_id, :name, NOW())"
+        ), {"id": tenant_id, "org_id": org_id, "name": "Test Tenant"})
+        conn.execute(text(
+            "INSERT INTO memberships(id, user_id, tenant_id, role, created_at) "
+            "VALUES (:id, :user_id, :tenant_id, :role, NOW())"
+        ), {"id": membership_id, "user_id": user_id, "tenant_id": tenant_id, "role": "admin"})
+    sync_engine.dispose()
+
+    return token
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def user_token(client) -> str:
+    """Register a regular user (no membership) and return JWT."""
+    email = f"viewer-{_uuid_module.uuid4()}@test.com"
+    await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
+    resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
+    assert resp.status_code == 200
+    return resp.json()["access_token"]
