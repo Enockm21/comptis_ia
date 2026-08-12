@@ -98,3 +98,23 @@ class ReconciliationPatternModel(Base):
     __table_args__ = (
         sa.UniqueConstraint("tenant_id", "libelle_pattern", "fournisseur", name="uq_rp_tenant_libelle_fournisseur"),
     )
+
+
+class OrgIntegrationModel(Base):
+    __tablename__ = "org_integrations"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    organization_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    api_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    mcp_url: Mapped[str | None] = mapped_column(sa.String(500), nullable=True)
+    token_encrypted: Mapped[bytes | None] = mapped_column(sa.LargeBinary, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("organization_id", "name", name="uq_org_integration_org_name"),
+    )
