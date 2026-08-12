@@ -64,21 +64,18 @@ async def client(app_engine):
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def admin_token(client, admin_db_url) -> str:
-    """Register an admin user, seed org+tenant+membership, return JWT."""
+async def admin_identity(client, admin_db_url) -> dict:
+    """Register an admin user, seed org+tenant+membership, return the ids."""
     email = f"admin-{_uuid_module.uuid4()}@test.com"
     await client.post("/auth/register", json={"email": email, "password": "Test1234!"})
     resp = await client.post("/auth/login", json={"email": email, "password": "Test1234!"})
     assert resp.status_code == 200
     token = resp.json()["access_token"]
 
-    # Decode JWT to get user_id
     from comptis.infrastructure.auth.jwt import JWTTokenService
     payload = JWTTokenService().decode(token)
     user_id = payload["sub"]
 
-    # Insert org + tenant + membership(role=admin) via postgres superuser
-    # admin_db_url is already postgresql+psycopg (sync psycopg3 driver)
     sync_engine = create_engine(admin_db_url)
     org_id = str(_uuid_module.uuid4())
     tenant_id = str(_uuid_module.uuid4())
@@ -98,7 +95,17 @@ async def admin_token(client, admin_db_url) -> str:
         ), {"id": membership_id, "user_id": user_id, "tenant_id": tenant_id, "role": "admin"})
     sync_engine.dispose()
 
-    return token
+    return {"token": token, "user_id": user_id, "org_id": org_id, "tenant_id": tenant_id}
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def admin_token(admin_identity: dict) -> str:
+    return admin_identity["token"]
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
+async def admin_tenant_id(admin_identity: dict) -> str:
+    return admin_identity["tenant_id"]
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
