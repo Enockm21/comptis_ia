@@ -46,9 +46,11 @@ async def _build_mcp_client_for_org(
     Si trouvée et decryptable, l'utilise.
     Sinon, fallback sur les variables d'environnement.
     """
-    encryption_key = os.environ.get("COMPTIS_ENCRYPTION_KEY")
-    if encryption_key:
-        cipher = FernetTokenCipher(encryption_key)
+    try:
+        cipher = FernetTokenCipher.from_env()
+    except KeyError:
+        cipher = None
+    if cipher is not None:
         repo = SQLAlchemyIntegrationRepository(session, cipher)
         token = await GetDecryptedToken(repo).execute(org_id, "pnicompta")
         integ = await repo.get(org_id, "pnicompta")
