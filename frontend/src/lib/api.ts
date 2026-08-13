@@ -1,4 +1,5 @@
 import { authHeaders } from './auth'
+import { checkOk, json } from './http'
 
 export interface Integration {
   name: string
@@ -15,14 +16,6 @@ export interface UpsertIntegrationBody {
 }
 
 const BASE = '/admin/integrations'
-
-async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { detail?: { message?: string } })?.detail?.message ?? `HTTP ${res.status}`)
-  }
-  return res.json() as Promise<T>
-}
 
 export const api = {
   async listIntegrations(): Promise<Integration[]> {
@@ -44,6 +37,6 @@ export const api = {
       method: 'DELETE',
       headers: authHeaders(),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    checkOk(res)
   },
 }

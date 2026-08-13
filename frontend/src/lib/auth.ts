@@ -6,6 +6,10 @@ export function setToken(token: string): void {
   localStorage.setItem('comptis_token', token)
 }
 
+export function clearToken(): void {
+  localStorage.removeItem('comptis_token')
+}
+
 export function authHeaders(): HeadersInit {
   const token = getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}

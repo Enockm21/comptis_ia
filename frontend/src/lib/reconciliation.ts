@@ -1,4 +1,5 @@
 import { authHeaders } from './auth'
+import { checkOk, json } from './http'
 
 export interface RunRequestBody {
   tenant_id: string
@@ -54,14 +55,6 @@ export interface Report {
   unmatched: TransactionData[]
 }
 
-async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { detail?: { message?: string } })?.detail?.message ?? `HTTP ${res.status}`)
-  }
-  return res.json() as Promise<T>
-}
-
 export async function runReconciliation(body: RunRequestBody): Promise<RunResponse> {
   const res = await fetch('/reconciliation/run', {
     method: 'POST',
@@ -86,7 +79,7 @@ export async function resolveConflict(
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ conflict_id: conflictId, decision }),
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  checkOk(res)
 }
 
 export async function getReport(runId: string): Promise<Report> {
