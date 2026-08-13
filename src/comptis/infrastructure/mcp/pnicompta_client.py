@@ -58,7 +58,10 @@ class PniComptaClient:
         date_debut: date | None = None,
         date_fin: date | None = None,
     ) -> list[Facture]:
-        params: dict = {"page_size": self._page_size}
+        # Only ever consider invoices a human has verified — an unverified invoice
+        # can carry unreliable OCR-extracted amount/supplier/date data, which would
+        # corrupt both candidate matching and the learned pattern memory.
+        params: dict = {"page_size": self._page_size, "is_verified": "true"}
         if date_debut:
             params["start_date"] = date_debut.isoformat()
         if date_fin:
