@@ -30,8 +30,8 @@ class FakeMcp:
 
     async def get_facture(self, id): ...
 
-    async def mark_rapprochement(self, facture_id, transaction_id, statut):
-        self.marked.append((facture_id, transaction_id, statut))
+    async def mark_rapprochement(self, facture_id, transaction_id, statut, amount):
+        self.marked.append((facture_id, transaction_id, statut, amount))
 
 
 class FakeMemory:

@@ -66,7 +66,7 @@ def make_match_node(
                         )
                         matches.append(m)
                         matched_facture_ids.add(best.id)
-                        await mcp_client.mark_rapprochement(best.id, txn.id, statut)
+                        await mcp_client.mark_rapprochement(best.id, txn.id, statut, amount=abs(txn.montant))
                         # Upsert pattern to reinforce
                         pattern = ReconciliationPattern(
                             tenant_id=tenant_id,
@@ -105,7 +105,7 @@ def make_match_node(
                 )
                 matches.append(m)
                 matched_facture_ids.add(best_facture.id)
-                await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut)
+                await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut, amount=abs(txn.montant))
                 # Upsert pattern
                 pattern = ReconciliationPattern(
                     tenant_id=tenant_id,
@@ -132,7 +132,7 @@ def make_match_node(
                     )
                     matches.append(m)
                     matched_facture_ids.add(best_facture.id)
-                    await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut)
+                    await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut, amount=abs(txn.montant))
                 else:
                     conflict = Conflict(
                         transaction=txn,

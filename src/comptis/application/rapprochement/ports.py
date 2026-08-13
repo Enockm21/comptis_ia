@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
@@ -38,6 +39,7 @@ class McpClient(Protocol):
         facture_id: str,
         transaction_id: str,
         statut: str,
+        amount: Decimal,
     ) -> None: ...
 
 

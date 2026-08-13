@@ -102,7 +102,14 @@ class PniComptaMcpClient:
         facture_id: str,
         transaction_id: str,
         statut: str,
+        amount: Decimal,
     ) -> None:
+        # NOTE: the ai-service MCP tool `link_invoice_transaction` doesn't accept
+        # an amount argument yet (PNiCompta's InvoiceTransaction.amount field is
+        # required server-side — see PniComptaClient.mark_rapprochement, which
+        # goes through the direct HTTP API and does send it). `amount` is accepted
+        # here to satisfy the McpClient Protocol but isn't forwarded until the
+        # MCP tool itself is updated on the PNiCompta side.
         result = await self._call(
             "link_invoice_transaction",
             {"invoice_id": int(facture_id), "transaction_id": int(transaction_id)},
