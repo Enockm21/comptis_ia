@@ -37,7 +37,10 @@ class PniComptaClient:
         elif statut == "non_rapprochee":
             params["reconciled"] = "false"
 
-        data = await self._get("/transactions/", params)
+        # /transactions/ (bare list) has no pagination configured server-side and
+        # ignores page_size, returning the entire unpaginated table — times out on
+        # real data volume. all_operations/ is the same queryset/filters but paginated.
+        data = await self._get("/transactions/all_operations/", params)
         rows = data.get("results", data) if isinstance(data, dict) else data
         return [self._txn_to_domain(r) for r in rows]
 
@@ -82,11 +85,16 @@ class PniComptaClient:
         facture_id: str,
         transaction_id: str,
         statut: str,
+        amount: Decimal,
     ) -> None:
         async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as client:
             resp = await client.post(
                 f"{self._base}/invoice-transactions/",
-                json={"invoice": int(facture_id), "transaction": int(transaction_id)},
+                json={
+                    "invoice": int(facture_id),
+                    "transaction": int(transaction_id),
+                    "amount": str(amount),
+                },
             )
             resp.raise_for_status()
 
@@ -117,14 +125,10 @@ class PniComptaClient:
         provider = r.get("provider") or {}
         fournisseur = provider.get("name") or r.get("title") or ""
         billing_date = r.get("billing_date") or r.get("due_date") or ""
-        is_reconciled = r.get("is_reconciled", False)
-        statut: str
-        if is_reconciled:
-            statut = "rapprochee"
-        elif r.get("is_paid"):
-            statut = "rapprochee"
-        else:
-            statut = "non_rapprochee"
+        # is_paid (the supplier has been paid) is independent from is_reconciled
+        # (the invoice is linked to a bank transaction) — a paid invoice not yet
+        # linked to its transaction is exactly what this feature needs to see.
+        statut = "rapprochee" if r.get("is_reconciled", False) else "non_rapprochee"
 
         return Facture(
             id=str(r["id"]),
