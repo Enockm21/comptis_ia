@@ -17,12 +17,15 @@ DATE_WINDOW_DAYS = 30
 def compute_composite_score(transaction: Transaction, facture: Facture) -> float:
     text_score = fuzz.token_sort_ratio(transaction.libelle, facture.fournisseur) / 100.0
 
-    if transaction.montant == Decimal("0"):
+    # Bank transactions carry a signed amount (negative for a debit/expense);
+    # invoice amounts are always positive face values — compare magnitudes.
+    t_montant = abs(transaction.montant)
+    if t_montant == Decimal("0"):
         amount_score = 0.0
     else:
         amount_score = max(
             0.0,
-            1.0 - float(abs(transaction.montant - facture.montant) / abs(transaction.montant)),
+            1.0 - float(abs(t_montant - facture.montant) / t_montant),
         )
 
     date_diff = abs((transaction.date - facture.date).days)
@@ -33,7 +36,9 @@ def compute_composite_score(transaction: Transaction, facture: Facture) -> float
 
 def prefilter_candidates(transaction: Transaction, factures: list[Facture]) -> list[Facture]:
     """Return factures within ±10% montant and ±30 days, statut non_rapprochee."""
-    t_montant = transaction.montant
+    # Compare magnitudes — transaction.montant is signed (negative for a debit),
+    # facture.montant is always a positive face value.
+    t_montant = abs(transaction.montant)
     lower = t_montant * Decimal("0.90")
     upper = t_montant * Decimal("1.10")
     t_date = transaction.date

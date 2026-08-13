@@ -70,6 +70,19 @@ def test_prefilter_excludes_out_of_range_amount():
     assert result[0].montant == Decimal("100.00")
 
 
+def test_negative_transaction_montant_matches_positive_facture():
+    # Real bank transactions are signed (negative = debit/expense); invoice
+    # amounts are always positive. A -7.10 debit paying a 7.10 invoice must
+    # score and prefilter identically to a same-magnitude positive amount.
+    t = Transaction(id="t1", montant=Decimal("-7.10"), date=date(2026, 7, 31), libelle="RATP PARIS FR")
+    f = Facture(
+        id="f1", montant=Decimal("7.10"), date=date(2026, 7, 30),
+        fournisseur="RATP PARIS", statut_rapprochement="non_rapprochee",
+    )
+    assert prefilter_candidates(t, [f]) == [f]
+    assert compute_composite_score(t, f) > 0.85
+
+
 def test_prefilter_excludes_already_reconciled():
     from comptis.domain.rapprochement.entities import Facture as F
     from decimal import Decimal
