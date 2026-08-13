@@ -17,12 +17,24 @@ class SQLAlchemyReconciliationPatternRepository:
         self._session = session
 
     async def find_by_libelle(self, tenant_id: UUID, libelle_pattern: str) -> ReconciliationPattern | None:
-        stmt = select(ReconciliationPatternModel).where(
-            ReconciliationPatternModel.tenant_id == tenant_id,
-            ReconciliationPatternModel.libelle_pattern == libelle_pattern,
+        # (tenant_id, libelle_pattern) is not unique on its own — the table's unique
+        # constraint also includes fournisseur, so several suppliers can share the same
+        # normalized libelle. Pick the pattern most likely to be relevant: the one seen
+        # most often, most recently.
+        stmt = (
+            select(ReconciliationPatternModel)
+            .where(
+                ReconciliationPatternModel.tenant_id == tenant_id,
+                ReconciliationPatternModel.libelle_pattern == libelle_pattern,
+            )
+            .order_by(
+                ReconciliationPatternModel.occurrence_count.desc(),
+                ReconciliationPatternModel.last_seen_at.desc(),
+            )
+            .limit(1)
         )
         result = await self._session.execute(stmt)
-        row = result.scalar_one_or_none()
+        row = result.scalars().first()
         if row is None:
             return None
         return self._to_domain(row)
