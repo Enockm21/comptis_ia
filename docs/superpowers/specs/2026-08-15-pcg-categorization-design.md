@@ -33,8 +33,14 @@ reste hors dépôt git — il ne sert qu'à l'évaluation locale de la précisio
 - Use cases : `CategorizeEcriture`, `ValidateCategorization`
 - Repository pattern par tenant (apprentissage incrémental, calqué sur
   `ReconciliationPattern` existant)
-- Port `AccountRetriever` + implémentation RAG hybride (dense + BM25 + reranking) sur le
-  référentiel PCG officiel
+- Port `AccountRetriever` + **implémentation phase 1** : recherche fuzzy (rapidfuzz, déjà une
+  dépendance du projet) contre une table `comptes_pcg` en Postgres. Le repo n'a aujourd'hui
+  aucune dépendance RAG (pas de vector store, pas de provider d'embeddings, pas de reranker) —
+  construire le RAG hybride complet (dense + BM25 + reranking) en même temps que les couches
+  domain/application serait un sous-système à part entière. Le port `AccountRetriever` est conçu
+  pour que cette implémentation soit remplaçable sans toucher aux use cases : la brique RAG
+  hybride (ADR-002 complet) est reportée à une itération suivante, une fois le harness
+  d'évaluation (niveau 4 ci-dessous) validé avec des métriques réelles sur le fuzzy matching.
 - Seuil de confiance configurable (défaut 85%, cohérent avec la contrainte non négociable
   #3 d'ARCHITECTURE.md) déclenchant l'escalade vers Human Review
 - Seuil d'occurrences avant qu'un pattern tenant soit jugé fiable (défaut **3**, configurable)
@@ -48,9 +54,10 @@ reste hors dépôt git — il ne sert qu'à l'évaluation locale de la précisio
 - **Endpoints API exposant ces use cases** : `interface/api/categorization/` sera ajouté dans
   cette brique en suivant le patron déjà établi (`rapprochement/router.py`), mais l'auth/API
   Gateway au niveau Organization reste la responsabilité de la brique `organizations` en cours.
-- **Chargement/maintenance du référentiel PCG officiel** : le script de seed du corpus PCG dans
-  le vector store est inclus, mais la gouvernance de mise à jour du référentiel (nouveaux
-  comptes, PCG révisé) n'est pas traitée ici.
+- **Gouvernance du référentiel PCG** : mise à jour du corpus (nouveaux comptes, PCG révisé)
+  non traitée ici.
+- **RAG hybride complet** (Qdrant, embeddings denses, index BM25, cross-encoder reranker) :
+  reporté à une brique suivante. Voir note de phasage dans "Inclus" ci-dessus.
 
 ---
 
@@ -104,6 +111,7 @@ class CategorizationSuggestion:
 @dataclass
 class CategorizationDecision:
     id: UUID
+    tenant_id: UUID                  # requis pour la policy RLS — sans lui rien à filtrer
     ecriture_id: UUID
     compte_code: str
     statut: CategorizationStatut     # AUTO_VALIDATED | PENDING_REVIEW | HUMAN_VALIDATED
