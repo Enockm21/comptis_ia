@@ -204,8 +204,11 @@ une erreur de catégorisation PCG peut fausser un bilan. La contrainte #3 d'ARCH
   `CategorizationSuggestion` vide → statut `PENDING_REVIEW`, confidence 0.0, pas d'exception —
   cohérent avec le principe déjà établi (`MissingTenantContextError` du module tenancy) de ne
   jamais faire échouer silencieusement une requête scoping-sensible.
-- **Contexte tenant manquant** : réutilise `MissingTenantContextError` (domain/tenancy) —
-  aucune requête pattern ne doit s'exécuter sans contexte RLS posé.
+- **Contexte tenant manquant** : `MissingTenantContextError` (domain/tenancy) existe dans le code
+  mais n'est actuellement levée nulle part — le comportement réel du reste du projet est que RLS
+  retourne silencieusement zéro ligne quand le contexte n'est pas posé. Cette brique suit le même
+  comportement réel (pas d'exception ajoutée) plutôt que la levée aspirationnelle initialement
+  prévue ici, pour rester cohérente avec `tenancy` et `rapprochement`.
 - **Candidats RAG à score très proche (ambiguïté)** : réduire la confidence proportionnellement
   à l'écart entre le 1er et le 2e candidat plutôt que de trancher arbitrairement — un score
   serré doit statistiquement plus souvent finir en Human Review.
