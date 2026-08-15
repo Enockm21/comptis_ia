@@ -19,9 +19,20 @@ Général correspond à cette écriture ?* — en amont ou en parallèle du rapp
 
 Le projet est validé sur un tenant pilote réel (l'entreprise du porteur du projet), pour lequel
 un historique d'écritures comptables réelles (libellé → compte réellement utilisé par le
-comptable) est disponible localement pour construire un jeu d'évaluation supervisé. Cet export
-reste hors dépôt git — il ne sert qu'à l'évaluation locale de la précision, jamais committé
-(le projet est open source et public).
+comptable) est disponible localement pour construire un jeu d'évaluation supervisé : deux
+exercices fiscaux complets au format **FEC** (Fichier des Écritures Comptables, export officiel
+obligatoire — cf. article A47 A-1 du LPF), qui donnent le vrai code PCG (`CompteNum`) apparié
+directement à chaque libellé d'écriture. Ces exports restent hors dépôt git — ils ne servent qu'à
+l'évaluation locale de la précision, jamais committés (le projet est open source et public).
+
+**Note sur le format des codes comptes :** les `CompteNum` réels du tenant pilote sont
+zero-paddés sur 8 chiffres (ex. `62610000`), alors que la racine PCG officielle fait 6 chiffres
+(`626100`). Le référentiel `comptes_pcg` seedé par cette brique stocke la racine 6 chiffres
+uniquement ; toute comparaison avec un `CompteNum` réel du FEC doit normaliser en ne comparant
+que les 6 premiers caractères. C'est une approximation "au niveau famille" assumée : certains
+codes réels du tenant portent une précision de sous-compte au-delà de la racine à 6 chiffres
+(ex. `66116300` vs `66116400` sont deux sous-comptes réellement distincts, pas juste un
+padding) — non couverte par cette première itération.
 
 ---
 
@@ -231,10 +242,12 @@ seuil de confiance franchi vs non franchi, non-apprentissage sur auto-validation
 (mêmes garanties d'isolation multi-tenant que `tenancy`).
 
 ### Niveau 4 — Évaluation (hors suite pytest, local uniquement)
-Un script d'évaluation (ex. `scripts/eval_categorization.py`, non committé avec des données
-réelles) rejoue l'historique du tenant pilote : pour chaque écriture passée, on masque le
-compte réellement utilisé, on fait tourner `CategorizeEcriture`, et on compare la prédiction
-au compte réel. Métriques : précision top-1, taux d'escalade Human Review, répartition
+Un script d'évaluation (`scripts/eval_categorization.py`, jamais alimenté avec des données
+committées) rejoue les deux exercices FEC du tenant pilote : pour chaque écriture passée, on
+fait tourner `CategorizeEcriture` sur le libellé réel, et on compare la prédiction au `CompteNum`
+réel (normalisé sur les 6 premiers caractères — voir note de format ci-dessus en Contexte).
+Le format FEC standardisé rend cette comparaison **exacte** (précision top-1 réelle), pas un
+proxy heuristique. Métriques : précision top-1, taux d'escalade Human Review, répartition
 PATTERN vs RAG. Ce harness ne fait pas partie de la CI — il sert à calibrer les seuils
 (`min_occurrence_threshold`, `seuil_validation`) avant la mise en production sur un tenant réel.
 

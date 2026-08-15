@@ -876,7 +876,7 @@ git commit -m "feat(infra): add ORM models for categorization"
 **Interfaces:**
 - Consumes: nothing from earlier tasks (raw SQL/Alembic `op` calls, independent of the ORM
   models in Task 7)
-- Produces: tables `comptes_pcg` (seeded with ~26 common class-6 accounts), `categorization_patterns`,
+- Produces: tables `comptes_pcg` (seeded with ~27 common class-6 accounts), `categorization_patterns`,
   `categorization_decisions` — read by Task 9's repositories and Task 10's retriever
 
 - [ ] **Step 1: Create the migration**
@@ -936,6 +936,7 @@ _PCG_SEED_ACCOUNTS: list[tuple[str, str, int]] = [
     ("626100", "Frais postaux et de télécommunications", 6),
     ("627000", "Services bancaires et assimilés", 6),
     ("635800", "Autres droits d'enregistrement et de timbre", 6),
+    ("658000", "Charges diverses de gestion courante", 6),
     ("641100", "Salaires, appointements", 6),
     ("645100", "Cotisations à l'URSSAF", 6),
 ]
@@ -1076,7 +1077,7 @@ asyncio.run(main())
 "
 ```
 
-Expected: `comptes_pcg rows: 26`
+Expected: `comptes_pcg rows: 27`
 
 - [ ] **Step 4: Commit**
 
@@ -1660,7 +1661,7 @@ _MIN_SCORE = 40.0  # rapidfuzz score is 0-100; below this a match is not worth s
 class RapidFuzzAccountRetriever:
     """Phase 1 implementation of the AccountRetriever port (see application/categorization/ports.py):
     fuzzy string matching between the query and each account's libelle, using rapidfuzz (already
-    a project dependency). Holds the reference set (~26 seeded accounts today) in memory — cheap
+    a project dependency). Holds the reference set (~27 seeded accounts today) in memory — cheap
     at this size. Swappable behind the AccountRetriever port for the future hybrid RAG
     implementation (ADR-002 phase 2) without touching any use case."""
 
@@ -2046,12 +2047,13 @@ git commit -m "feat(interface): add categorization router with categorize and va
 
 ---
 
-## Task 12: Evaluation harness (local, real PNI data — not part of the pytest suite)
+## Task 12: Evaluation harness (local, real FEC data — not part of the pytest suite)
 
 **Files:**
 - Create: `scripts/eval_categorization.py`
-- Modify: `pyproject.toml` (add `openpyxl` to the `dev` dependency group — only this local script
-  needs it, not the running application)
+
+No dependency changes needed — FEC is plain tab-separated text, parsed with the stdlib `csv`
+module. No `openpyxl` or any other new dependency.
 
 **Interfaces:**
 - Consumes: `CategorizeEcriture` (Task 5); `EcritureACategoriser` (Task 2);
@@ -2059,75 +2061,65 @@ git commit -m "feat(interface): add categorization router with categorize and va
 - Produces: a standalone CLI script — no other task depends on it
 
 This implements spec §"Niveau 4 — Évaluation". It is explicitly **not** wired into CI or pytest:
-it requires a real local export file that is never committed (see [[project_pni_pilot]] memory —
-treat this as sensitive real business data). The script itself contains no real data, only
-generic parsing/scoring logic, so it is safe to commit.
+it requires real local FEC export files that are never committed (see [[project_pni_pilot]]
+memory — treat this as sensitive real business data). The script itself contains no real data,
+only generic parsing/scoring logic, so it is safe to commit.
 
-Because PNiCompta's internal `Intitulé` labels (e.g. "FRAIS TELECOMMUNICATIONS") don't map 1:1 to
-official PCG codes without manual curation, the script reports a **heuristic proxy metric** (fuzzy
-text overlap between the predicted account's libelle and the export's own `Intitulé` column) —
-not a strict ground-truth accuracy. It prints a full per-row table so the user can eyeball real
-mismatches, which is the actual point: deciding whether phase-1 rapidfuzz is good enough or
-whether the hybrid RAG brick (ADR-002 phase 2) is needed sooner.
+FEC is the official, standardized French accounting export format (article A47 A-1 du LPF):
+tab-separated, 18 columns, one row per journal entry line, with `CompteNum` carrying the real
+PCG account code actually used — no proxy/heuristic mapping needed, unlike the "Edition
+Journaux" export considered earlier. The one wrinkle: real `CompteNum` values are zero-padded to
+8 digits (e.g. `62610000`) while `comptes_pcg` stores the 6-digit official root (`626100`) — the
+script normalizes by comparing only the first 6 characters (see spec §Contexte, "Note sur le
+format des codes comptes").
 
-- [ ] **Step 1: Add `openpyxl` to dev dependencies**
-
-```toml
-# pyproject.toml — inside [dependency-groups] dev = [...]
-    "openpyxl>=3.1",
-```
-
-```bash
-uv sync
-```
-
-- [ ] **Step 2: Write the script**
+- [ ] **Step 1: Write the script**
 
 ```python
 #!/usr/bin/env python3
 """Local evaluation harness for the PCG categorization brick (spec: docs/superpowers/specs/
 2026-08-15-pcg-categorization-design.md, "Niveau 4"). Not part of the pytest suite.
 
-Replays a real "Edition Journaux" export (PNiCompta) against CategorizeEcriture and reports a
-heuristic proxy match rate — fuzzy text overlap between the predicted account's libelle and the
-export's own Intitulé column. This is NOT a strict ground-truth comparison: PNiCompta's internal
-Intitulé labels don't map 1:1 to official PCG codes without manual curation. Read the printed
-per-row table to judge real mismatches.
+Replays one or more real FEC exports (Fichier des Écritures Comptables — the official French
+accounting export format) against CategorizeEcriture and reports exact top-1 accuracy: for each
+class-6 (charges) line, does the predicted compte_code match the real CompteNum, compared at the
+6-digit PCG root (CompteNum is zero-padded to 8 digits in real exports; comptes_pcg stores the
+6-digit root — see spec §Contexte)?
 
 Requires a local Postgres with migrations applied (comptes_pcg must be seeded):
     docker compose up -d postgres
     uv run alembic upgrade head
 
 Usage:
-    uv run python scripts/eval_categorization.py /path/to/edition-journaux.xlsx
+    uv run python scripts/eval_categorization.py /path/to/FEC20231231.txt [/path/to/FEC20221231.txt ...]
 
-The input file must never be committed to the repo.
+FEC files are encoded ISO-8859-1 (Latin-1) per common export convention, not UTF-8. Input files
+must never be committed to the repo.
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
 import os
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 
-import openpyxl
-from rapidfuzz import fuzz
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from comptis.application.categorization.use_cases import CategorizeEcriture
 from comptis.domain.categorization.entities import CategorizationPattern, EcritureACategoriser
 from comptis.infrastructure.categorization.rapidfuzz_retriever import RapidFuzzAccountRetriever
 
-_PLAUSIBLE_MATCH_THRESHOLD = 50.0  # rapidfuzz score 0-100 — heuristic proxy, not ground truth
+_PCG_ROOT_LENGTH = 6  # comptes_pcg stores 6-digit roots; real CompteNum is 8-digit zero-padded
 
 
 class _NullPatternRepo:
     """Always misses. This harness measures the phase-1 RAG fallback baseline alone — there is
-    no learned tenant history yet on a first run, and seeding one from this same file would
-    make the harness grade its own homework."""
+    no learned tenant history yet on a first run, and seeding one from this same file would make
+    the harness grade its own homework."""
 
     async def find_by_libelle(self, tenant_id, libelle_pattern) -> CategorizationPattern | None:
         return None
@@ -2147,43 +2139,57 @@ class _NullDecisionRepo:
 @dataclass
 class _Row:
     libelle: str
-    intitule: str
+    compte_num: str
     montant: Decimal
+    ecriture_date: date
+
+
+def _parse_amount(raw: str) -> Decimal:
+    if not raw:
+        return Decimal("0")
+    try:
+        return Decimal(raw.replace(",", "."))
+    except InvalidOperation:
+        return Decimal("0")
+
+
+def _parse_fec_date(raw: str) -> date:
+    # FEC standard is YYYYMMDD; fall back to today() for malformed dates rather than crash a
+    # multi-thousand-row replay over one bad cell.
+    try:
+        return datetime.strptime(raw.strip(), "%Y%m%d").date()
+    except ValueError:
+        return date.today()
 
 
 def _read_rows(path: str) -> list[_Row]:
-    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    sheet = wb.active
-    header = [cell.value for cell in next(sheet.iter_rows(min_row=1, max_row=1))]
-    col = {name: idx for idx, name in enumerate(header) if name is not None}
-    if "Libellé de l'écriture" not in col or "Intitulé" not in col:
-        raise SystemExit(
-            f"Expected columns 'Libellé de l'écriture' and 'Intitulé' in the sheet header, "
-            f"found: {list(col)}"
-        )
-    debit_idx = col.get("Débit")
     rows: list[_Row] = []
-    for raw in sheet.iter_rows(min_row=2, values_only=True):
-        libelle = raw[col["Libellé de l'écriture"]]
-        intitule = raw[col["Intitulé"]]
-        if not libelle or not intitule:
-            continue
-        montant = Decimal("0")
-        if debit_idx is not None and raw[debit_idx]:
-            try:
-                montant = Decimal(str(raw[debit_idx]))
-            except InvalidOperation:
-                montant = Decimal("0")
-        rows.append(_Row(libelle=str(libelle), intitule=str(intitule), montant=montant))
+    with open(path, encoding="latin-1", newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        required = {"CompteNum", "EcritureLib", "Debit", "EcritureDate"}
+        if reader.fieldnames is None or not required.issubset(reader.fieldnames):
+            raise SystemExit(
+                f"Expected FEC columns {required} in {path}, found: {reader.fieldnames}"
+            )
+        for raw in reader:
+            compte_num = (raw["CompteNum"] or "").strip()
+            libelle = (raw["EcritureLib"] or "").strip()
+            if not compte_num.startswith("6") or not libelle:
+                continue  # scope: class-6 (charges) accounts only, matching the seeded comptes_pcg
+            rows.append(_Row(
+                libelle=libelle,
+                compte_num=compte_num,
+                montant=_parse_amount(raw["Debit"]),
+                ecriture_date=_parse_fec_date(raw["EcritureDate"]),
+            ))
     return rows
 
 
-async def _run(path: str) -> None:
+async def _run(paths: list[str]) -> None:
     engine = create_async_engine(os.environ["DATABASE_URL"])
     async with AsyncSession(engine, expire_on_commit=False) as session:
         async with session.begin():
             retriever = await RapidFuzzAccountRetriever.load(session)
-    libelle_by_code = {c.code: c.libelle for c in retriever.comptes}
 
     use_case = CategorizeEcriture(
         pattern_repo=_NullPatternRepo(),
@@ -2191,64 +2197,78 @@ async def _run(path: str) -> None:
         decision_repo=_NullDecisionRepo(),
     )
 
-    rows = _read_rows(path)
-    plausible = 0
+    rows: list[_Row] = []
+    for path in paths:
+        rows.extend(_read_rows(path))
+
+    correct = 0
     escalated = 0
-    print(f"{'libellé écriture':<40} | {'intitulé réel':<30} | {'compte prédit':<14} | {'conf.':<6} | statut | match?")
-    print("-" * 120)
+    correct_and_auto_validated = 0
+    print(f"{'libellé écriture':<45} | {'CompteNum réel':<14} | {'prédit':<10} | {'conf.':<6} | statut | exact?")
+    print("-" * 110)
     for row in rows:
         ecriture = EcritureACategoriser(
-            id=uuid4(), libelle=row.libelle, montant=row.montant, tiers=row.libelle, date=date.today(),
+            id=uuid4(), libelle=row.libelle, montant=row.montant, tiers=row.libelle,
+            date=row.ecriture_date,
         )
         decision = await use_case.execute(tenant_id=uuid4(), ecriture=ecriture)
-        predicted_libelle = libelle_by_code.get(decision.compte_code, "")
-        score = fuzz.token_set_ratio(row.intitule, predicted_libelle) if predicted_libelle else 0.0
-        is_plausible = score >= _PLAUSIBLE_MATCH_THRESHOLD
-        plausible += int(is_plausible)
-        escalated += int(decision.statut.value == "pending_review")
+        real_root = row.compte_num[:_PCG_ROOT_LENGTH]
+        is_exact = decision.compte_code == real_root
+        correct += int(is_exact)
+        is_escalated = decision.statut.value == "pending_review"
+        escalated += int(is_escalated)
+        if is_exact and not is_escalated:
+            correct_and_auto_validated += 1
         print(
-            f"{row.libelle[:40]:<40} | {row.intitule[:30]:<30} | {decision.compte_code:<14} | "
-            f"{decision.confidence:<6.2f} | {decision.statut.value:<14} | {'oui' if is_plausible else 'non'}"
+            f"{row.libelle[:45]:<45} | {row.compte_num:<14} | {decision.compte_code:<10} | "
+            f"{decision.confidence:<6.2f} | {decision.statut.value:<14} | {'oui' if is_exact else 'non'}"
         )
 
     total = len(rows)
-    print("-" * 120)
-    print(f"Total lignes évaluées : {total}")
+    print("-" * 110)
+    print(f"Total lignes évaluées (classe 6 uniquement) : {total}")
     if total:
-        print(f"Match plausible (proxy heuristique) : {plausible}/{total} ({100 * plausible / total:.1f}%)")
+        print(f"Précision top-1 (racine PCG 6 chiffres) : {correct}/{total} ({100 * correct / total:.1f}%)")
         print(f"Escaladées en Human Review : {escalated}/{total} ({100 * escalated / total:.1f}%)")
+        print(
+            f"Correctes ET auto-validées (sans revue humaine) : "
+            f"{correct_and_auto_validated}/{total} ({100 * correct_and_auto_validated / total:.1f}%)"
+        )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("xlsx_path", help="Path to a local 'Edition Journaux' export (never committed)")
+    parser.add_argument("fec_paths", nargs="+", help="One or more local FEC export paths (never committed)")
     args = parser.parse_args()
-    asyncio.run(_run(args.xlsx_path))
+    asyncio.run(_run(args.fec_paths))
 
 
 if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 3: Run it against the real local export**
+- [ ] **Step 2: Run it against the real local FEC exports**
 
 ```bash
 docker compose up -d postgres
 uv run alembic upgrade head
-uv run python scripts/eval_categorization.py "$HOME/Downloads/Planet Edition provisoire des journaux du 01-01-2024 au 31-12-2024 (1).xlsx"
+uv run python scripts/eval_categorization.py \
+  "$HOME/Downloads/480013069FEC20221231.txt" \
+  "$HOME/Downloads/480013069FEC20231231.txt"
 ```
 
-Expected: a printed table plus a summary with total rows, plausible-match percentage, and
-Human Review escalation percentage. There is no fixed pass/fail threshold — read the per-row
-table to judge whether phase-1 rapidfuzz is a good enough baseline, and use the numbers to
-calibrate `min_occurrence_threshold` / `confidence_threshold` before deciding whether the phase-2
-hybrid RAG brick is worth building next.
+Expected: a printed per-row table plus a summary with total class-6 lines evaluated, exact
+top-1 precision, Human Review escalation rate, and the fraction that were both correct and
+auto-validated (the real-world "hands-off" accuracy). There is no fixed pass/fail threshold —
+use these numbers to calibrate `min_occurrence_threshold` / `confidence_threshold`, and to decide
+whether the phase-2 hybrid RAG brick (ADR-002) is worth building next, or whether the seeded
+`comptes_pcg` list just needs more coverage first.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add scripts/eval_categorization.py pyproject.toml uv.lock
-git commit -m "feat(eval): add local evaluation harness for PCG categorization (spec Niveau 4)"
+git add scripts/eval_categorization.py
+git commit -m "feat(eval): add FEC-based evaluation harness for PCG categorization (spec Niveau 4)"
 ```
 
 ---
