@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import create_engine, text
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -82,3 +83,49 @@ async def test_validate_unknown_ecriture_returns_404(client, admin_token: str, a
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.integration
+async def test_validate_rejects_unknown_compte_code(
+    client, admin_token: str, admin_tenant_id: str, admin_db_url: str,
+):
+    libelle = "GARBAGE ACCOUNT CODE TEST"
+    payload = _ecriture_payload(libelle=libelle, tiers="Garbage Tiers")
+    payload["id"] = "55555555-5555-5555-5555-555555555555"
+
+    cat_resp = await client.post(
+        "/categorization/categorize",
+        json={"tenant_id": admin_tenant_id, "ecriture": payload},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert cat_resp.status_code == 200
+
+    val_resp = await client.post(
+        "/categorization/validate",
+        json={"tenant_id": admin_tenant_id, "ecriture": payload, "compte_code": "999999"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert val_resp.status_code == 422
+
+    sync_engine = create_engine(admin_db_url)
+    with sync_engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT 1 FROM categorization_patterns WHERE libelle_pattern = :lib"),
+            {"lib": libelle},
+        ).first()
+    sync_engine.dispose()
+    assert row is None
+
+
+@pytest.mark.integration
+async def test_validate_rejects_compte_code_longer_than_20_chars(
+    client, admin_token: str, admin_tenant_id: str,
+):
+    payload = _ecriture_payload()
+    payload["id"] = "66666666-6666-6666-6666-666666666666"
+    resp = await client.post(
+        "/categorization/validate",
+        json={"tenant_id": admin_tenant_id, "ecriture": payload, "compte_code": "1" * 21},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 422

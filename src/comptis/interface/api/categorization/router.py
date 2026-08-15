@@ -81,6 +81,9 @@ async def validate(
     await set_tenant_context(
         session, organization_id=tenant.organization_id, tenant_id=body.tenant_id, user_id=user_id
     )
+    retriever = await RapidFuzzAccountRetriever.load(session)
+    if not any(c.code == body.compte_code for c in retriever.comptes):
+        raise HTTPException(status_code=422, detail="Unknown compte_code")
     use_case = ValidateCategorization(
         pattern_repo=SQLAlchemyCategorizationPatternRepository(session),
         decision_repo=SQLAlchemyCategorizationDecisionRepository(session),

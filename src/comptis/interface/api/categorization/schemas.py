@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EcritureSchema(BaseModel):
@@ -23,7 +23,7 @@ class CategorizeRequest(BaseModel):
 class ValidateRequest(BaseModel):
     tenant_id: UUID
     ecriture: EcritureSchema
-    compte_code: str
+    compte_code: str = Field(max_length=20)
 
 
 class DecisionResponse(BaseModel):

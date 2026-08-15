@@ -110,6 +110,12 @@ class ValidateCategorization:
             raise CategorizationDecisionNotFoundError(
                 f"no decision for ecriture {ecriture.id} — run CategorizeEcriture first"
             )
+        if existing.tenant_id != tenant_id:
+            # Treat a tenant mismatch the same as "no decision found" — do not leak that a
+            # decision exists under a different tenant.
+            raise CategorizationDecisionNotFoundError(
+                f"no decision for ecriture {ecriture.id} — run CategorizeEcriture first"
+            )
 
         updated = CategorizationDecision(
             id=existing.id,

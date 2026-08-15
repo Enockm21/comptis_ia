@@ -200,3 +200,28 @@ async def test_validate_raises_when_no_prior_decision():
         await validator.execute(
             tenant_id=uuid4(), ecriture=_ecriture(), compte_code="626100", validated_by=uuid4(),
         )
+
+
+async def test_validate_raises_when_existing_decision_belongs_to_different_tenant():
+    pattern_repo = _FakePatternRepo(existing=None)
+    decision_repo = _FakeDecisionRepo()
+    owning_tenant_id = uuid4()
+    other_tenant_id = uuid4()
+    ecriture = _ecriture()
+
+    categorize = CategorizeEcriture(
+        pattern_repo=pattern_repo,
+        account_retriever=_FakeRetriever([
+            CategorizationSuggestion(compte_code="626100", confidence=0.4, source=CategorizationSource.RAG)
+        ]),
+        decision_repo=decision_repo,
+    )
+    await categorize.execute(tenant_id=owning_tenant_id, ecriture=ecriture)
+
+    validator = ValidateCategorization(pattern_repo=pattern_repo, decision_repo=decision_repo)
+    with pytest.raises(CategorizationDecisionNotFoundError):
+        await validator.execute(
+            tenant_id=other_tenant_id, ecriture=ecriture, compte_code="613500", validated_by=uuid4(),
+        )
+
+    assert pattern_repo.upserted == []
