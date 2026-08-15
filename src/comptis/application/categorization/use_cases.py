@@ -9,14 +9,17 @@ from comptis.application.categorization.ports import (
 )
 from comptis.domain.categorization.entities import (
     CategorizationDecision,
+    CategorizationPattern,
     CategorizationSuggestion,
     EcritureACategoriser,
 )
+from comptis.domain.categorization.exceptions import CategorizationDecisionNotFoundError
 from comptis.domain.categorization.value_objects import CategorizationSource, CategorizationStatut
 
 DEFAULT_MIN_OCCURRENCE_THRESHOLD = 3
 DEFAULT_CONFIDENCE_THRESHOLD = 0.85
 _PATTERN_CONFIDENCE = 0.95
+_HUMAN_VALIDATED_CONFIDENCE = 1.0
 
 
 def _normalize_libelle(libelle: str) -> str:
@@ -81,3 +84,53 @@ class CategorizeEcriture:
         )
         await self._decision_repo.save(decision)
         return decision
+
+
+class ValidateCategorization:
+    """Records a human's correction/confirmation of a categorization decision.
+
+    This is the only use case allowed to write to the pattern-learning table:
+    CategorizeEcriture deliberately never upserts patterns on its own, so that
+    the tenant's learned patterns only ever reflect human-confirmed mappings.
+    """
+
+    def __init__(
+        self,
+        pattern_repo: CategorizationPatternRepository,
+        decision_repo: CategorizationDecisionRepository,
+    ) -> None:
+        self._pattern_repo = pattern_repo
+        self._decision_repo = decision_repo
+
+    async def execute(
+        self, tenant_id: UUID, ecriture: EcritureACategoriser, compte_code: str, validated_by: UUID,
+    ) -> CategorizationDecision:
+        existing = await self._decision_repo.get_by_ecriture(ecriture.id)
+        if existing is None:
+            raise CategorizationDecisionNotFoundError(
+                f"no decision for ecriture {ecriture.id} — run CategorizeEcriture first"
+            )
+
+        updated = CategorizationDecision(
+            id=existing.id,
+            tenant_id=tenant_id,
+            ecriture_id=ecriture.id,
+            compte_code=compte_code,
+            statut=CategorizationStatut.HUMAN_VALIDATED,
+            confidence=_HUMAN_VALIDATED_CONFIDENCE,
+            validated_by=validated_by,
+            created_at=existing.created_at,
+        )
+        await self._decision_repo.save(updated)
+
+        pattern = CategorizationPattern(
+            tenant_id=tenant_id,
+            libelle_pattern=_normalize_libelle(ecriture.libelle),
+            fournisseur=ecriture.tiers,
+            compte_code=compte_code,
+            occurrence_count=1,
+            last_seen_at=updated.created_at,
+        )
+        await self._pattern_repo.upsert(pattern)
+
+        return updated

@@ -4,13 +4,14 @@ from uuid import uuid4
 
 import pytest
 
-from comptis.application.categorization.use_cases import CategorizeEcriture
+from comptis.application.categorization.use_cases import CategorizeEcriture, ValidateCategorization
 from comptis.domain.categorization.entities import (
     CategorizationDecision,
     CategorizationPattern,
     CategorizationSuggestion,
     EcritureACategoriser,
 )
+from comptis.domain.categorization.exceptions import CategorizationDecisionNotFoundError
 from comptis.domain.categorization.value_objects import CategorizationSource, CategorizationStatut
 
 
@@ -43,7 +44,7 @@ class _FakeDecisionRepo:
         self.saved.append(decision)
 
     async def get_by_ecriture(self, ecriture_id):
-        for d in self.saved:
+        for d in reversed(self.saved):
             if d.ecriture_id == ecriture_id:
                 return d
         return None
@@ -140,3 +141,62 @@ async def test_decision_is_persisted():
     await uc.execute(tenant_id=uuid4(), ecriture=ecriture)
     assert len(decision_repo.saved) == 1
     assert decision_repo.saved[0].ecriture_id == ecriture.id
+
+
+async def test_validate_marks_human_validated_and_learns_pattern():
+    pattern_repo = _FakePatternRepo(existing=None)
+    decision_repo = _FakeDecisionRepo()
+    tenant_id = uuid4()
+    ecriture = _ecriture()
+
+    categorize = CategorizeEcriture(
+        pattern_repo=pattern_repo,
+        account_retriever=_FakeRetriever([
+            CategorizationSuggestion(compte_code="626100", confidence=0.4, source=CategorizationSource.RAG)
+        ]),
+        decision_repo=decision_repo,
+    )
+    pending = await categorize.execute(tenant_id=tenant_id, ecriture=ecriture)
+    assert pending.statut == CategorizationStatut.PENDING_REVIEW
+
+    validator = ValidateCategorization(pattern_repo=pattern_repo, decision_repo=decision_repo)
+    validated_by = uuid4()
+    result = await validator.execute(
+        tenant_id=tenant_id, ecriture=ecriture, compte_code="613500", validated_by=validated_by,
+    )
+
+    assert result.statut == CategorizationStatut.HUMAN_VALIDATED
+    assert result.compte_code == "613500"
+    assert result.validated_by == validated_by
+    assert result.confidence == 1.0
+    assert len(pattern_repo.upserted) == 1
+    assert pattern_repo.upserted[0].compte_code == "613500"
+    assert pattern_repo.upserted[0].fournisseur == ecriture.tiers
+
+
+async def test_auto_validated_decision_does_not_upsert_pattern():
+    pattern_repo = _FakePatternRepo(existing=None)
+    decision_repo = _FakeDecisionRepo()
+    tenant_id = uuid4()
+    ecriture = _ecriture()
+
+    categorize = CategorizeEcriture(
+        pattern_repo=pattern_repo,
+        account_retriever=_FakeRetriever([
+            CategorizationSuggestion(compte_code="626100", confidence=0.9, source=CategorizationSource.RAG)
+        ]),
+        decision_repo=decision_repo,
+    )
+    await categorize.execute(tenant_id=tenant_id, ecriture=ecriture)
+
+    assert pattern_repo.upserted == []
+
+
+async def test_validate_raises_when_no_prior_decision():
+    validator = ValidateCategorization(
+        pattern_repo=_FakePatternRepo(existing=None), decision_repo=_FakeDecisionRepo(),
+    )
+    with pytest.raises(CategorizationDecisionNotFoundError):
+        await validator.execute(
+            tenant_id=uuid4(), ecriture=_ecriture(), compte_code="626100", validated_by=uuid4(),
+        )
