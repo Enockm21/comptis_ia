@@ -75,9 +75,13 @@ def _parse_amount(raw: str) -> Decimal:
         return Decimal("0")
 
 
-def _parse_fec_date(raw: str) -> date:
-    # FEC standard is YYYYMMDD; fall back to today() for malformed dates rather than crash a
-    # multi-thousand-row replay over one bad cell.
+def _parse_fec_date(raw: str | None) -> date:
+    # FEC standard is YYYYMMDD; fall back to today() for missing/malformed dates rather than
+    # crash a multi-thousand-row replay over one bad cell. csv.DictReader fills a field with
+    # None (its restval default) when a physical row has fewer columns than the header, so the
+    # None-guard below matters as much as the ValueError catch for a malformed string.
+    if not raw:
+        return date.today()
     try:
         return datetime.strptime(raw.strip(), "%Y%m%d").date()
     except ValueError:
