@@ -118,3 +118,55 @@ class OrgIntegrationModel(Base):
     __table_args__ = (
         sa.UniqueConstraint("organization_id", "name", name="uq_org_integration_org_name"),
     )
+
+
+class CompteComptableModel(Base):
+    __tablename__ = "comptes_pcg"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(sa.String(20), nullable=False, unique=True)
+    libelle: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    classe: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+
+
+class CategorizationPatternModel(Base):
+    __tablename__ = "categorization_patterns"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    libelle_pattern: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    fournisseur: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    compte_code: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=1)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "tenant_id", "libelle_pattern", "fournisseur", name="uq_cp_tenant_libelle_fournisseur"
+        ),
+    )
+
+
+class CategorizationDecisionModel(Base):
+    __tablename__ = "categorization_decisions"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    ecriture_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    compte_code: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    confidence: Mapped[float] = mapped_column(sa.Float, nullable=False)
+    validated_by: Mapped[UUID | None] = mapped_column(
+        sa.Uuid, sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (sa.UniqueConstraint("ecriture_id", name="uq_cd_ecriture"),)
