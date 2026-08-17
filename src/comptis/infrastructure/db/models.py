@@ -1,7 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import date as dt_date, datetime, timezone
 from decimal import Decimal
 
 from .base import Base
@@ -170,3 +170,46 @@ class CategorizationDecisionModel(Base):
     )
 
     __table_args__ = (sa.UniqueConstraint("ecriture_id", name="uq_cd_ecriture"),)
+
+
+class PlanComptableModel(Base):
+    __tablename__ = "plan_comptable"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    numero: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    libelle: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    classe: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("tenant_id", "numero", name="uq_plan_comptable_tenant_numero"),
+    )
+
+
+class EcritureModel(Base):
+    __tablename__ = "ecritures"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    transaction_id: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    facture_id: Mapped[str] = mapped_column(sa.String(64), nullable=False)
+    montant: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False)
+    date: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    compte_id: Mapped[UUID | None] = mapped_column(
+        sa.Uuid, sa.ForeignKey("plan_comptable.id", ondelete="SET NULL"), nullable=True
+    )
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, server_default="a_categoriser")
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("tenant_id", "transaction_id", name="uq_ecritures_tenant_transaction"),
+    )
