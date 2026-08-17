@@ -1,8 +1,10 @@
-"""Add plan_comptable (per-tenant chart of accounts) and ecritures tables
+"""Add plan_comptable (per-tenant chart of accounts) and ecritures tables with RLS
 
 plan_comptable: per-tenant chart of accounts imported from PNiCompta.
   Distinct from the global `comptes_pcg` (PCG reference table seeded in 0006).
-  RLS keyed directly on app.current_tenant_id.
+  RLS uses NULLIF(current_setting('app.current_tenant_id', true), '')::uuid to
+  guard against asyncpg pooled connections leaving '' in the GUC after a
+  transaction ends.
 
 ecritures: accounting entries created when a reconciliation match is confirmed.
   compte_id FK references plan_comptable (the tenant's actual chart, not the
@@ -53,7 +55,7 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
         op.execute(f"""
             CREATE POLICY {table}_tenant_isolation ON {table}
-                USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid)
+                USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)
         """)
         op.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table} TO comptis_app")
 

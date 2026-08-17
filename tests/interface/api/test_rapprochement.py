@@ -205,3 +205,72 @@ async def test_get_report_after_all_conflicts_resolved(client, admin_token: str,
     body = resp.json()
     assert body["total_rapprochees"] == 1
     assert body["total_transactions"] == 1
+
+
+@pytest.mark.integration
+async def test_resolve_confirmer_creates_ecriture_in_db(
+    client, admin_token: str, admin_tenant_id: str, admin_db_url: str
+):
+    from decimal import Decimal
+    from sqlalchemy import create_engine, text
+
+    txn = Transaction(id="txn-db-confirmer", montant=Decimal("333.00"), date=date(2026, 2, 1), libelle="CONFIRMER CO")
+    fac = Facture(id="fac-db-confirmer", montant=Decimal("333.00"), date=date(2026, 2, 1),
+                  fournisseur="CONFIRMER CO", statut_rapprochement="non_rapprochee")
+    conflict = Conflict(transaction=txn, facture=fac, raison="confidence_insuffisante", composite_score=0.7)
+    run_id = _seed_run(admin_tenant_id, [conflict])
+
+    resp = await client.post(
+        f"/reconciliation/run/{run_id}/resolve",
+        json={"conflict_id": "txn-db-confirmer", "decision": "confirmer"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+
+    eng = create_engine(admin_db_url)
+    with eng.connect() as conn:
+        row = conn.execute(
+            text("SELECT facture_id, montant, statut, compte_id FROM ecritures WHERE transaction_id = :t"),
+            {"t": "txn-db-confirmer"},
+        ).fetchone()
+    eng.dispose()
+
+    assert row is not None, "écriture not written for confirmer decision"
+    assert row.facture_id == "fac-db-confirmer"
+    assert str(row.montant) == "333.00"
+    assert row.statut == "a_categoriser"
+    assert row.compte_id is None
+
+
+@pytest.mark.integration
+async def test_resolve_ecart_accepte_creates_ecriture_in_db(
+    client, admin_token: str, admin_tenant_id: str, admin_db_url: str
+):
+    from decimal import Decimal
+    from sqlalchemy import create_engine, text
+
+    txn = Transaction(id="txn-db-ecart", montant=Decimal("444.00"), date=date(2026, 2, 2), libelle="ECART CO")
+    fac = Facture(id="fac-db-ecart", montant=Decimal("440.00"), date=date(2026, 2, 2),
+                  fournisseur="ECART CO", statut_rapprochement="non_rapprochee")
+    conflict = Conflict(transaction=txn, facture=fac, raison="ecart_montant", composite_score=0.65)
+    run_id = _seed_run(admin_tenant_id, [conflict])
+
+    resp = await client.post(
+        f"/reconciliation/run/{run_id}/resolve",
+        json={"conflict_id": "txn-db-ecart", "decision": "ecart_accepte"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 200
+
+    eng = create_engine(admin_db_url)
+    with eng.connect() as conn:
+        row = conn.execute(
+            text("SELECT facture_id, montant, statut FROM ecritures WHERE transaction_id = :t"),
+            {"t": "txn-db-ecart"},
+        ).fetchone()
+    eng.dispose()
+
+    assert row is not None, "écriture not written for ecart_accepte decision"
+    assert row.facture_id == "fac-db-ecart"
+    assert str(row.montant) == "444.00"
+    assert row.statut == "a_categoriser"

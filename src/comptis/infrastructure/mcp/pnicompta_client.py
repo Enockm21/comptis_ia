@@ -106,18 +106,32 @@ class PniComptaClient:
     # ------------------------------------------------------------------
 
     async def list_comptes(self) -> list[tuple[str, str]]:
-        """Implémente PlanComptableSource — lit les Category déjà configurées
-        côté PNiCompta (account_number/account_label réels, posés par
-        l'expert-comptable du client) plutôt que de deviner un plan de
-        comptes générique.
+        """Implémente PlanComptableSource — lit toutes les Category configurées
+        côté PNiCompta (account_number/account_label réels) en suivant la pagination.
         """
-        data = await self._get("/categories/", {"page_size": 500})
-        rows = data.get("results", data) if isinstance(data, dict) else data
-        return [
-            (r["account_number"], r.get("account_label") or r.get("name", ""))
-            for r in rows
-            if r.get("account_number")
-        ]
+        rows: list[tuple[str, str]] = []
+        next_url: str | None = f"{self._base}/categories/"
+        params: dict | None = {"page_size": 500}
+        async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as http:
+            while next_url:
+                resp = await http.get(next_url, params=params)
+                resp.raise_for_status()
+                params = None  # only the first request needs page_size
+                data = resp.json()
+                if isinstance(data, dict):
+                    page = data.get("results", data)
+                    next_url = data.get("next")
+                else:
+                    page = data
+                    next_url = None
+                if not isinstance(page, list):
+                    break
+                rows.extend(
+                    (r["account_number"], r.get("account_label") or r.get("name", ""))
+                    for r in page
+                    if isinstance(r, dict) and r.get("account_number")
+                )
+        return rows
 
     # ------------------------------------------------------------------
     # Internal helpers

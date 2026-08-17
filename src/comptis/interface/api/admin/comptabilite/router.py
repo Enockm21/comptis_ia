@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +32,7 @@ async def import_plan_comptable(
     if tenant is None or tenant.organization_id != org_id:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    # require_admin leaves app.current_tenant_id at the nil placeholder — comptes_pcg
+    # require_admin leaves app.current_tenant_id at the nil placeholder — plan_comptable
     # and ecritures RLS is keyed on it directly, so it must be set explicitly here.
     await set_tenant_context(session, tenant_id=body.tenant_id)
 
@@ -43,7 +44,10 @@ async def import_plan_comptable(
         )
 
     repo = SQLAlchemyCompteComptableRepository(session)
-    comptes = await ImporterPlanComptable(compte_repo=repo, source=client).execute(body.tenant_id)
+    try:
+        comptes = await ImporterPlanComptable(compte_repo=repo, source=client).execute(body.tenant_id)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"PNiCompta unavailable: {exc}")
     return ImportPlanComptableResponse(
         comptes=[
             CompteComptableResponse(numero=c.numero, libelle=c.libelle, classe=c.classe)
