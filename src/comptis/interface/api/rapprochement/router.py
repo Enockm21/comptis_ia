@@ -1,24 +1,19 @@
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from comptis.application.integrations.use_cases import GetDecryptedToken
 from comptis.application.rapprochement.use_cases import RunReconciliation, RunReconciliationRequest
 from comptis.domain.rapprochement.entities import ReconciliationReport
 from comptis.infrastructure.agents.rapprochement.graph import build_reconciliation_graph
 from comptis.infrastructure.agents.rapprochement.llm_arbiter import LLMArbiter
-from comptis.infrastructure.db.integration_repository import (
-    FernetTokenCipher,
-    SQLAlchemyIntegrationRepository,
-)
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
+from comptis.infrastructure.mcp.client_factory import build_mcp_client_for_org
 from comptis.infrastructure.mcp.pnicompta_client import PniComptaClient
 from comptis.infrastructure.mcp.pnicompta_mcp_client import PniComptaMcpClient
 from comptis.interface.api.dependencies import get_db_session, require_user
@@ -37,39 +32,6 @@ router = APIRouter(prefix="/reconciliation", tags=["reconciliation"])
 
 # In-memory store for run results (MVP — replace with Postgres checkpointer in production)
 _runs: dict[str, dict] = {}
-
-
-async def _build_mcp_client_for_org(
-    org_id: uuid.UUID,
-    session: AsyncSession,
-) -> PniComptaClient | PniComptaMcpClient:
-    """Priorité : config DB → fallback env vars.
-
-    Essaie d'abord de charger la config depuis la DB pour 'pnicompta'.
-    Si trouvée et decryptable, l'utilise.
-    Sinon, fallback sur les variables d'environnement.
-    """
-    try:
-        cipher = FernetTokenCipher.from_env()
-    except KeyError:
-        cipher = None
-    if cipher is not None:
-        repo = SQLAlchemyIntegrationRepository(session, cipher)
-        token = await GetDecryptedToken(repo).execute(org_id, "pnicompta")
-        integ = await repo.get(org_id, "pnicompta")
-        if integ is not None:
-            if integ.mcp_url:
-                return PniComptaMcpClient(url=integ.mcp_url, api_key=token or "")
-            if integ.api_url:
-                return PniComptaClient(base_url=integ.api_url, token=token or "")
-
-    # Fallback env vars
-    mcp_url = os.environ.get("PNICOMPTA_MCP_URL", "")
-    api_key = os.environ.get("PNICOMPTA_API_TOKEN", "")
-    if mcp_url:
-        return PniComptaMcpClient(url=mcp_url, api_key=api_key)
-    base_url = os.environ.get("PNICOMPTA_API_URL", "http://localhost:8000/api")
-    return PniComptaClient(base_url=base_url, token=api_key)
 
 
 async def _require_tenant_access(tenant_id, session: AsyncSession, not_found_detail: str = "Tenant not found"):
@@ -92,7 +54,7 @@ async def run_reconciliation(
     )
 
     memory = SQLAlchemyReconciliationPatternRepository(session)
-    mcp_client = await _build_mcp_client_for_org(org_id, session)
+    mcp_client = await build_mcp_client_for_org(org_id, session)
     use_case = RunReconciliation(mcp_client=mcp_client, memory=memory)
     request = RunReconciliationRequest(
         tenant_id=body.tenant_id,
