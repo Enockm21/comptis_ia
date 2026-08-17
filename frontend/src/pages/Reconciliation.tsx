@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { clearToken } from '../lib/auth'
 import { listTenants, type Tenant } from '../lib/tenants'
 import {
   runReconciliation,
@@ -36,7 +34,6 @@ const labelStyle: React.CSSProperties = {
 }
 
 export default function Reconciliation() {
-  const navigate = useNavigate()
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [tenantId, setTenantId] = useState('')
   const [dateDebut, setDateDebut] = useState('')
@@ -108,11 +105,6 @@ export default function Reconciliation() {
     setError(null)
   }
 
-  const handleLogout = () => {
-    clearToken()
-    navigate('/login')
-  }
-
   const selectedTenant = tenants.find(t => t.id === tenantId)
 
   if (step === 'review' && conflicts.length > 0) {
@@ -134,47 +126,8 @@ export default function Reconciliation() {
   }
 
   return (
-    <div style={{ minHeight: '100svh', background: 'var(--bg)' }}>
-      {/* Top nav */}
-      <nav style={{
-        borderBottom: '1px solid var(--border)',
-        padding: '0 24px',
-        height: 56,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: 'linear-gradient(135deg, #aa3bff, #7c3aed)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-              <path d="M15 3h6v6M10 14 21 3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-h)', letterSpacing: '-0.2px' }}>
-            Comptis
-          </span>
-        </div>
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: '6px 14px', borderRadius: 8,
-            border: '1px solid var(--border)',
-            background: 'transparent',
-            color: 'var(--text)',
-            fontSize: 13, fontWeight: 500, cursor: 'pointer',
-          }}
-        >
-          Déconnexion
-        </button>
-      </nav>
-
-      {/* Page content */}
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '48px 24px' }}>
+    <div style={{ padding: '32px 36px' }}>
+      <div style={{ maxWidth: 560 }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <div style={{
@@ -310,3 +263,4 @@ export default function Reconciliation() {
     </div>
   )
 }
+

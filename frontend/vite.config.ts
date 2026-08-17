@@ -11,6 +11,10 @@ export default defineConfig({
       '/auth': 'http://localhost:8000',
       '/reconciliation/run': 'http://localhost:8000',
       '/tenants': 'http://localhost:8000',
+      '/ecritures': 'http://localhost:8000',
+      '/plan-comptable': 'http://localhost:8000',
+      '/api/categorization': 'http://localhost:8000',
+      '/categorization': 'http://localhost:8000',
     },
   },
 })

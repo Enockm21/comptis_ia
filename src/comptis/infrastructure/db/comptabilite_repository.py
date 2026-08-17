@@ -11,6 +11,15 @@ from comptis.domain.comptabilite.entities import CompteComptable, Ecriture
 from .models import PlanComptableModel, EcritureModel
 
 
+def _ecriture_to_domain(m: EcritureModel) -> Ecriture:
+    from comptis.domain.comptabilite.value_objects import StatutEcriture
+    return Ecriture(
+        id=m.id, tenant_id=m.tenant_id, transaction_id=m.transaction_id,
+        facture_id=m.facture_id, montant=m.montant, date=m.date,
+        compte_id=m.compte_id, statut=StatutEcriture(m.statut), created_at=m.created_at,
+    )
+
+
 def _compte_to_domain(m: PlanComptableModel) -> CompteComptable:
     return CompteComptable(
         id=m.id, tenant_id=m.tenant_id, numero=m.numero, libelle=m.libelle,
@@ -44,6 +53,14 @@ class SQLAlchemyCompteComptableRepository:
 class SQLAlchemyEcritureRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def list_by_tenant(self, tenant_id: UUID, statut: str | None = None) -> list[Ecriture]:
+        stmt = select(EcritureModel).where(EcritureModel.tenant_id == tenant_id)
+        if statut:
+            stmt = stmt.where(EcritureModel.statut == statut)
+        stmt = stmt.order_by(EcritureModel.date.desc())
+        result = await self._session.execute(stmt)
+        return [_ecriture_to_domain(m) for m in result.scalars().all()]
 
     async def save(self, ecriture: Ecriture) -> None:
         stmt = (
