@@ -102,6 +102,24 @@ class PniComptaClient:
             resp.raise_for_status()
 
     # ------------------------------------------------------------------
+    # Plan comptable
+    # ------------------------------------------------------------------
+
+    async def list_comptes(self) -> list[tuple[str, str]]:
+        """Implémente PlanComptableSource — lit les Category déjà configurées
+        côté PNiCompta (account_number/account_label réels, posés par
+        l'expert-comptable du client) plutôt que de deviner un plan de
+        comptes générique.
+        """
+        data = await self._get("/categories/", {"page_size": 500})
+        rows = data.get("results", data) if isinstance(data, dict) else data
+        return [
+            (r["account_number"], r.get("account_label") or r.get("name", ""))
+            for r in rows
+            if r.get("account_number")
+        ]
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
