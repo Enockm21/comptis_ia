@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from comptis.application.comptabilite.use_cases import CreerEcritureDepuisMatch
 from comptis.application.rapprochement.ports import McpClient, ReconciliationMemory
 from comptis.domain.rapprochement.entities import (
     Conflict,
@@ -27,6 +28,7 @@ def make_match_node(
     mcp_client: McpClient,
     memory: ReconciliationMemory,
     arbiter: LLMArbiter,
+    ecriture_repo,
 ):
     async def match(state: ReconciliationState) -> dict:
         tenant_id = state["tenant_id"]
@@ -67,6 +69,13 @@ def make_match_node(
                         matches.append(m)
                         matched_facture_ids.add(best.id)
                         await mcp_client.mark_rapprochement(best.id, txn.id, statut, amount=abs(txn.montant))
+                        await CreerEcritureDepuisMatch(ecriture_repo).execute(
+                            tenant_id=tenant_id,
+                            transaction_id=txn.id,
+                            facture_id=best.id,
+                            montant=abs(txn.montant),
+                            date_=txn.date,
+                        )
                         # Upsert pattern to reinforce
                         pattern = ReconciliationPattern(
                             tenant_id=tenant_id,
@@ -106,6 +115,13 @@ def make_match_node(
                 matches.append(m)
                 matched_facture_ids.add(best_facture.id)
                 await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut, amount=abs(txn.montant))
+                await CreerEcritureDepuisMatch(ecriture_repo).execute(
+                    tenant_id=tenant_id,
+                    transaction_id=txn.id,
+                    facture_id=best_facture.id,
+                    montant=abs(txn.montant),
+                    date_=txn.date,
+                )
                 # Upsert pattern
                 pattern = ReconciliationPattern(
                     tenant_id=tenant_id,
@@ -133,6 +149,13 @@ def make_match_node(
                     matches.append(m)
                     matched_facture_ids.add(best_facture.id)
                     await mcp_client.mark_rapprochement(best_facture.id, txn.id, statut, amount=abs(txn.montant))
+                    await CreerEcritureDepuisMatch(ecriture_repo).execute(
+                        tenant_id=tenant_id,
+                        transaction_id=txn.id,
+                        facture_id=best_facture.id,
+                        montant=abs(txn.montant),
+                        date_=txn.date,
+                    )
                 else:
                     conflict = Conflict(
                         transaction=txn,

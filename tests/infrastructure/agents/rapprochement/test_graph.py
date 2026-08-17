@@ -51,6 +51,14 @@ class FakeMemory:
         return pattern
 
 
+class FakeEcritureRepository:
+    def __init__(self):
+        self.saved = []
+
+    async def save(self, ecriture):
+        self.saved.append(ecriture)
+
+
 class FakeArbiter:
     def __init__(self, confidence=0.0):
         self._confidence = confidence
@@ -68,9 +76,10 @@ async def test_direct_match_high_score():
 
     mcp = FakeMcp(transactions=[t], factures=[f])
     memory = FakeMemory()
+    ecriture_repo = FakeEcritureRepository()
     arbiter = FakeArbiter(confidence=0.0)
 
-    graph = build_reconciliation_graph(mcp, memory, arbiter)
+    graph = build_reconciliation_graph(mcp, memory, ecriture_repo, arbiter)
     initial_state = {
         "tenant_id": tenant_id,
         "date_debut": date(2026, 1, 1),
@@ -88,6 +97,15 @@ async def test_direct_match_high_score():
     assert result["report"] is not None
     assert result["report"].total_rapprochees == 1
 
+    # The confirmed match must have produced a persisted écriture
+    assert len(ecriture_repo.saved) == 1
+    ecriture = ecriture_repo.saved[0]
+    assert ecriture.tenant_id == tenant_id
+    assert ecriture.transaction_id == "t1"
+    assert ecriture.facture_id == "f1"
+    assert ecriture.montant == Decimal("100.00")
+    assert ecriture.compte_id is None
+
 
 @pytest.mark.asyncio
 async def test_unmatched_when_no_candidates():
@@ -99,9 +117,10 @@ async def test_unmatched_when_no_candidates():
 
     mcp = FakeMcp(transactions=[t], factures=[f])
     memory = FakeMemory()
+    ecriture_repo = FakeEcritureRepository()
     arbiter = FakeArbiter(confidence=0.0)
 
-    graph = build_reconciliation_graph(mcp, memory, arbiter)
+    graph = build_reconciliation_graph(mcp, memory, ecriture_repo, arbiter)
     initial_state = {
         "tenant_id": tenant_id,
         "date_debut": date(2026, 1, 1),
@@ -116,6 +135,7 @@ async def test_unmatched_when_no_candidates():
     result = await graph.ainvoke(initial_state)
     assert result["report"].total_non_rapprochees == 1
     assert result["report"].total_rapprochees == 0
+    assert len(ecriture_repo.saved) == 0
 
 
 @pytest.mark.asyncio
@@ -129,9 +149,10 @@ async def test_report_totals_correct():
 
     mcp = FakeMcp(transactions=[t1, t2], factures=[f1])
     memory = FakeMemory()
+    ecriture_repo = FakeEcritureRepository()
     arbiter = FakeArbiter(confidence=0.0)
 
-    graph = build_reconciliation_graph(mcp, memory, arbiter)
+    graph = build_reconciliation_graph(mcp, memory, ecriture_repo, arbiter)
     initial_state = {
         "tenant_id": tenant_id,
         "date_debut": date(2026, 1, 1),
@@ -148,3 +169,4 @@ async def test_report_totals_correct():
     assert r.total_transactions == 2
     assert r.total_rapprochees == 1
     assert r.total_non_rapprochees == 1
+    assert len(ecriture_repo.saved) == 1

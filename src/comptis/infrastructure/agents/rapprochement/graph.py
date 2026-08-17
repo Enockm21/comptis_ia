@@ -14,13 +14,14 @@ from comptis.infrastructure.agents.rapprochement.state import ReconciliationStat
 def build_reconciliation_graph(
     mcp_client: McpClient,
     memory: ReconciliationMemory,
+    ecriture_repo,
     arbiter: LLMArbiter | None = None,
 ):
     if arbiter is None:
         arbiter = LLMArbiter()
 
     fetch = make_fetch_node(mcp_client, memory)
-    match = make_match_node(mcp_client, memory, arbiter)
+    match = make_match_node(mcp_client, memory, arbiter, ecriture_repo)
 
     builder = StateGraph(ReconciliationState)
     builder.add_node("fetch", fetch)

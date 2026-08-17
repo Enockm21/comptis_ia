@@ -6,10 +6,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from comptis.application.comptabilite.use_cases import CreerEcritureDepuisMatch
 from comptis.application.rapprochement.use_cases import RunReconciliation, RunReconciliationRequest
 from comptis.domain.rapprochement.entities import ReconciliationReport
 from comptis.infrastructure.agents.rapprochement.graph import build_reconciliation_graph
 from comptis.infrastructure.agents.rapprochement.llm_arbiter import LLMArbiter
+from comptis.infrastructure.db.comptabilite_repository import SQLAlchemyEcritureRepository
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
@@ -54,6 +56,7 @@ async def run_reconciliation(
     )
 
     memory = SQLAlchemyReconciliationPatternRepository(session)
+    ecriture_repo = SQLAlchemyEcritureRepository(session)
     mcp_client = await build_mcp_client_for_org(org_id, session)
     use_case = RunReconciliation(mcp_client=mcp_client, memory=memory)
     request = RunReconciliationRequest(
@@ -64,7 +67,7 @@ async def run_reconciliation(
     date_debut, date_fin = use_case.resolve_window(request)
 
     run_id = str(uuid.uuid4())
-    graph = build_reconciliation_graph(mcp_client, memory)  # type: ignore[arg-type]
+    graph = build_reconciliation_graph(mcp_client, memory, ecriture_repo)  # type: ignore[arg-type]
     initial_state = {
         "tenant_id": body.tenant_id,
         "date_debut": date_debut,
@@ -97,6 +100,10 @@ async def resolve_conflict(
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
     await _require_tenant_access(run["tenant_id"], session, not_found_detail="Run not found")
+    tenant = await SQLAlchemyTenantRepository(session).get_by_id(run["tenant_id"])
+    org_id = tenant.organization_id
+    await set_tenant_context(session, organization_id=org_id, tenant_id=run["tenant_id"], user_id=user_id)
+    ecriture_repo = SQLAlchemyEcritureRepository(session)
 
     pending = list(run.get("pending_review", []))
     conflict = next((c for c in pending if c.transaction.id == body.conflict_id), None)
@@ -118,6 +125,13 @@ async def resolve_conflict(
             ecart_montant=ecart,
             statut="confirme",
         ))
+        await CreerEcritureDepuisMatch(ecriture_repo).execute(
+            tenant_id=run["tenant_id"],
+            transaction_id=conflict.transaction.id,
+            facture_id=conflict.facture.id,
+            montant=abs(conflict.transaction.montant),
+            date_=conflict.transaction.date,
+        )
     elif body.decision == "ecart_accepte" and conflict.facture is not None:
         from decimal import Decimal
         from comptis.domain.rapprochement.entities import Match
@@ -129,6 +143,13 @@ async def resolve_conflict(
             ecart_montant=ecart,
             statut="ecart",
         ))
+        await CreerEcritureDepuisMatch(ecriture_repo).execute(
+            tenant_id=run["tenant_id"],
+            transaction_id=conflict.transaction.id,
+            facture_id=conflict.facture.id,
+            montant=abs(conflict.transaction.montant),
+            date_=conflict.transaction.date,
+        )
     else:
         unmatched.append(conflict.transaction)
 
