@@ -75,7 +75,7 @@ function TVALineTable({ lines, label }: { lines: TVALine[]; label: string }) {
 }
 
 export default function TVA() {
-  const { selectedTenant } = useTenant()
+  const { selected: selectedTenant } = useTenant()
   const [dateDebut, setDateDebut] = useState(periodDefaults().debut)
   const [dateFin, setDateFin] = useState(periodDefaults().fin)
   const [compute, setCompute] = useState<TVACompute | null>(null)
