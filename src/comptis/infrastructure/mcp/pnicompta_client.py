@@ -57,11 +57,13 @@ class PniComptaClient:
         statut: str | None = None,
         date_debut: date | None = None,
         date_fin: date | None = None,
+        verified_only: bool = True,
     ) -> list[Facture]:
-        # Only ever consider invoices a human has verified — an unverified invoice
-        # can carry unreliable OCR-extracted amount/supplier/date data, which would
-        # corrupt both candidate matching and the learned pattern memory.
-        params: dict = {"page_size": self._page_size, "is_verified": "true"}
+        # verified_only=True for reconciliation (unverified data corrupts matching).
+        # verified_only=False for TVA (obligation arises on receipt, not verification).
+        params: dict = {"page_size": self._page_size}
+        if verified_only:
+            params["is_verified"] = "true"
         if date_debut:
             params["start_date"] = date_debut.isoformat()
         if date_fin:

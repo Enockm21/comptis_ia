@@ -22,6 +22,7 @@ class ComputeTVA:
         factures = await self._client.list_factures(
             date_debut=date_debut,
             date_fin=date_fin,
+            verified_only=False,
         )
 
         # Group by taux for collectée (vente) and déductible (achat)

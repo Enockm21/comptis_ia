@@ -30,6 +30,7 @@ class McpClient(Protocol):
         statut: str | None = None,
         date_debut: date | None = None,
         date_fin: date | None = None,
+        verified_only: bool = True,
     ) -> list[Facture]: ...
 
     async def get_facture(self, id: str) -> Facture: ...

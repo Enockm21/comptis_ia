@@ -68,6 +68,7 @@ class PniComptaMcpClient:
         statut: str | None = None,
         date_debut: date | None = None,
         date_fin: date | None = None,
+        verified_only: bool = True,
     ) -> list[Facture]:
         is_reconciled: bool | None = None
         if statut == "rapprochee":
@@ -76,6 +77,8 @@ class PniComptaMcpClient:
             is_reconciled = False
 
         args: dict = {"limit": 500}
+        if verified_only:
+            args["is_verified"] = True
         if date_debut:
             args["start_date"] = date_debut.isoformat()
         if date_fin:
