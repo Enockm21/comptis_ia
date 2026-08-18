@@ -1,5 +1,4 @@
-import { authHeaders } from './auth'
-import { json } from './http'
+import { json, fetchWithAuth } from './http'
 
 export interface Tenant {
   id: string
@@ -7,6 +6,6 @@ export interface Tenant {
 }
 
 export async function listTenants(): Promise<Tenant[]> {
-  const res = await fetch('/tenants', { headers: authHeaders() })
+  const res = await fetchWithAuth('/tenants')
   return json<Tenant[]>(res)
 }

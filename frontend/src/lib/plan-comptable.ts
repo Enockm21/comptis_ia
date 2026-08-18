@@ -1,4 +1,4 @@
-import { authHeaders } from './auth'
+import { fetchWithAuth } from './http'
 
 export interface Compte {
   id: string
@@ -8,7 +8,7 @@ export interface Compte {
 }
 
 export async function listPlanComptable(tenantId: string): Promise<Compte[]> {
-  const res = await fetch(`/plan-comptable?tenant_id=${tenantId}`, { headers: authHeaders() })
+  const res = await fetchWithAuth(`/plan-comptable?tenant_id=${tenantId}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<Compte[]>
 }

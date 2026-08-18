@@ -1,4 +1,4 @@
-import { authHeaders } from './auth'
+import { fetchWithAuth } from './http'
 
 export interface Ecriture {
   id: string
@@ -14,7 +14,7 @@ export interface Ecriture {
 export async function listEcritures(tenantId: string, statut?: string): Promise<Ecriture[]> {
   const params = new URLSearchParams({ tenant_id: tenantId })
   if (statut) params.set('statut', statut)
-  const res = await fetch(`/ecritures?${params}`, { headers: authHeaders() })
+  const res = await fetchWithAuth(`/ecritures?${params}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<Ecriture[]>
 }

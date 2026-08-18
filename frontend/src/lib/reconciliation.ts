@@ -1,5 +1,4 @@
-import { authHeaders } from './auth'
-import { checkOk, json } from './http'
+import { checkOk, json, fetchWithAuth } from './http'
 
 export interface RunRequestBody {
   tenant_id: string
@@ -56,16 +55,16 @@ export interface Report {
 }
 
 export async function runReconciliation(body: RunRequestBody): Promise<RunResponse> {
-  const res = await fetch('/reconciliation/run', {
+  const res = await fetchWithAuth('/reconciliation/run', {
     method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
   return json<RunResponse>(res)
 }
 
 export async function getConflicts(runId: string): Promise<Conflict[]> {
-  const res = await fetch(`/reconciliation/run/${runId}/conflicts`, { headers: authHeaders() })
+  const res = await fetchWithAuth(`/reconciliation/run/${runId}/conflicts`)
   return json<Conflict[]>(res)
 }
 
@@ -74,15 +73,15 @@ export async function resolveConflict(
   conflictId: string,
   decision: 'confirmer' | 'rejeter' | 'ecart_accepte',
 ): Promise<void> {
-  const res = await fetch(`/reconciliation/run/${runId}/resolve`, {
+  const res = await fetchWithAuth(`/reconciliation/run/${runId}/resolve`, {
     method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ conflict_id: conflictId, decision }),
   })
   checkOk(res)
 }
 
 export async function getReport(runId: string): Promise<Report> {
-  const res = await fetch(`/reconciliation/run/${runId}/report`, { headers: authHeaders() })
+  const res = await fetchWithAuth(`/reconciliation/run/${runId}/report`)
   return json<Report>(res)
 }

@@ -1,4 +1,4 @@
-import { authHeaders } from './auth'
+import { fetchWithAuth } from './http'
 
 export interface RunHistoryItem {
   id: string
@@ -14,9 +14,7 @@ export interface RunHistoryItem {
 }
 
 export async function listRunHistory(tenantId: string): Promise<RunHistoryItem[]> {
-  const res = await fetch(`/reconciliation/history?tenant_id=${tenantId}`, {
-    headers: authHeaders(),
-  })
+  const res = await fetchWithAuth(`/reconciliation/history?tenant_id=${tenantId}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json() as Promise<RunHistoryItem[]>
 }
