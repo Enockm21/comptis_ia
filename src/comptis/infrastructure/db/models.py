@@ -213,3 +213,18 @@ class EcritureModel(Base):
     __table_args__ = (
         sa.UniqueConstraint("tenant_id", "transaction_id", name="uq_ecritures_tenant_transaction"),
     )
+
+
+class ReconciliationRunModel(Base):
+    __tablename__ = "reconciliation_runs"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    date_debut: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    date_fin: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    total_transactions: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+    total_rapprochees: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+    total_ecarts: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+    total_non_rapprochees: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="en_cours")
+    ran_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)

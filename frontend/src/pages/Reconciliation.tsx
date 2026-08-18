@@ -8,8 +8,10 @@ import {
   type Conflict,
   type Report,
 } from '../lib/reconciliation'
+import { listRunHistory, type RunHistoryItem } from '../lib/reconciliation-history'
 import ConflictReview from '../components/ConflictReview'
 import ReconciliationReport from '../components/ReconciliationReport'
+import { useTenant } from '../lib/TenantContext'
 
 type Step = 'trigger' | 'review' | 'report'
 
@@ -33,8 +35,13 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
 }
 
+const fmt = new Intl.NumberFormat('fr-FR')
+
 export default function Reconciliation() {
+  const { selected: activeTenant } = useTenant()
   const [tenants, setTenants] = useState<Tenant[]>([])
+  const [history, setHistory] = useState<RunHistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [tenantId, setTenantId] = useState('')
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
@@ -48,9 +55,27 @@ export default function Reconciliation() {
 
   useEffect(() => {
     listTenants()
-      .then(setTenants)
+      .then(list => {
+        setTenants(list)
+        // Pre-select the active tenant from context
+        if (activeTenant) setTenantId(activeTenant.id)
+        else if (list.length > 0) setTenantId(list[0].id)
+      })
       .catch(err => setError(err instanceof Error ? err.message : 'Erreur de chargement'))
-  }, [])
+  }, [activeTenant])
+
+  const loadHistory = (tid: string) => {
+    if (!tid) return
+    setHistoryLoading(true)
+    listRunHistory(tid)
+      .then(setHistory)
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false))
+  }
+
+  useEffect(() => {
+    loadHistory(tenantId)
+  }, [tenantId])
 
   const advanceAfter = async (id: string, previousTotal: number) => {
     const pending = await getConflicts(id)
@@ -75,6 +100,7 @@ export default function Reconciliation() {
       })
       setRunId(run.run_id)
       await advanceAfter(run.run_id, 0)
+      loadHistory(tenantId)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur lors du lancement')
     } finally {
@@ -258,6 +284,64 @@ export default function Reconciliation() {
               )}
             </button>
           </div>
+        </div>
+
+        {/* History */}
+        <div style={{ marginTop: 40 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 16px' }}>
+            Historique des rapprochements
+          </h2>
+
+          {historyLoading && <p style={{ color: 'var(--text)', fontSize: 14 }}>Chargement…</p>}
+
+          {!historyLoading && history.length === 0 && (
+            <p style={{ color: 'var(--text)', fontSize: 14 }}>Aucun rapprochement effectué pour ce client.</p>
+          )}
+
+          {!historyLoading && history.length > 0 && (
+            <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+              {history.map((run, i) => (
+                <div
+                  key={run.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: 12,
+                    padding: '14px 18px',
+                    borderBottom: i < history.length - 1 ? '1px solid var(--border)' : 'none',
+                    background: 'var(--card-bg)',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>
+                      {new Date(run.date_debut).toLocaleDateString('fr-FR')} → {new Date(run.date_fin).toLocaleDateString('fr-FR')}
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text)' }}>
+                      {fmt.format(run.total_transactions)} transaction{run.total_transactions > 1 ? 's' : ''} · {' '}
+                      <span style={{ color: '#10b981', fontWeight: 500 }}>{run.total_rapprochees} rapprochée{run.total_rapprochees > 1 ? 's' : ''}</span>
+                      {run.total_ecarts > 0 && <> · <span style={{ color: '#f59e0b' }}>{run.total_ecarts} écart{run.total_ecarts > 1 ? 's' : ''}</span></>}
+                      {run.total_non_rapprochees > 0 && <> · <span style={{ color: '#ef4444' }}>{run.total_non_rapprochees} non rapprochée{run.total_non_rapprochees > 1 ? 's' : ''}</span></>}
+                    </p>
+                    <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text)' }}>
+                      {new Date(run.ran_at).toLocaleString('fr-FR')}
+                    </p>
+                  </div>
+                  <span style={{
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: run.statut === 'termine' ? '#d1fae5' : '#fef3c7',
+                    color: run.statut === 'termine' ? '#065f46' : '#92400e',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {run.statut === 'termine' ? 'Terminé' : 'En cours'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

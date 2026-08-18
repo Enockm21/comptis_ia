@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -73,3 +73,16 @@ class ReportResponse(BaseModel):
     total_ecarts: int
     matches: list[MatchSchema]
     unmatched: list[TransactionSchema]
+
+
+class RunHistoryItem(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    date_debut: date
+    date_fin: date
+    total_transactions: int
+    total_rapprochees: int
+    total_ecarts: int
+    total_non_rapprochees: int
+    statut: str
+    ran_at: datetime

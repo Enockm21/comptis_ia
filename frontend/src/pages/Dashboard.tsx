@@ -76,10 +76,10 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 36 }}>
-        <StatCard label="Écritures totales" value={total} />
+        <StatCard label="Rapprochées" value={total} color="#10b981" sub="transactions confirmées" />
         <StatCard label="À catégoriser" value={aCategoriser} color={aCategoriser > 0 ? '#f59e0b' : undefined} />
         <StatCard label="Catégorisées" value={categorisees} />
-        <StatCard label="Validées" value={validees} color="#10b981" />
+        <StatCard label="Validées" value={validees} />
         <StatCard label="Volume total" value={fmt.format(montantTotal)} />
       </div>
 

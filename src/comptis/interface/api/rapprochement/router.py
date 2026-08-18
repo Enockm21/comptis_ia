@@ -13,6 +13,7 @@ from comptis.infrastructure.agents.rapprochement.graph import build_reconciliati
 from comptis.infrastructure.agents.rapprochement.llm_arbiter import LLMArbiter
 from comptis.infrastructure.db.comptabilite_repository import SQLAlchemyEcritureRepository
 from comptis.infrastructure.db.reconciliation_patterns import SQLAlchemyReconciliationPatternRepository
+from comptis.infrastructure.db.reconciliation_run_repository import SQLAlchemyReconciliationRunRepository
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
 from comptis.infrastructure.mcp.client_factory import build_mcp_client_for_org
@@ -25,6 +26,7 @@ from comptis.interface.api.rapprochement.schemas import (
     MatchSchema,
     ReportResponse,
     ResolveRequest,
+    RunHistoryItem,
     RunRequest,
     RunResponse,
     TransactionSchema,
@@ -81,6 +83,27 @@ async def run_reconciliation(
     }
     result = await graph.ainvoke(initial_state)
     _runs[run_id] = result
+
+    # Persist run summary in DB
+    matches = result.get("matches", [])
+    unmatched = result.get("unmatched", [])
+    pending = result.get("pending_review", [])
+    total_rapprochees = sum(1 for m in matches if m.statut == "confirme")
+    total_ecarts = sum(1 for m in matches if m.statut == "ecart")
+    total_non_rapprochees = len(unmatched)
+    total_transactions = total_rapprochees + total_ecarts + total_non_rapprochees + len(pending)
+    run_repo = SQLAlchemyReconciliationRunRepository(session)
+    await run_repo.save(
+        tenant_id=body.tenant_id,
+        date_debut=date_debut,
+        date_fin=date_fin,
+        total_transactions=total_transactions,
+        total_rapprochees=total_rapprochees,
+        total_ecarts=total_ecarts,
+        total_non_rapprochees=total_non_rapprochees,
+        statut="en_cours" if pending else "termine",
+    )
+
     return RunResponse(
         run_id=run_id,
         tenant_id=body.tenant_id,
@@ -243,3 +266,32 @@ async def get_report(
             for t in report.unmatched
         ],
     )
+
+
+@router.get("/history", response_model=list[RunHistoryItem])
+async def list_run_history(
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[RunHistoryItem]:
+    tenant = await _require_tenant_access(tenant_id, session)
+    await set_tenant_context(
+        session, organization_id=tenant.organization_id, tenant_id=tenant_id, user_id=user_id
+    )
+    repo = SQLAlchemyReconciliationRunRepository(session)
+    runs = await repo.list_by_tenant(tenant_id)
+    return [
+        RunHistoryItem(
+            id=r.id,
+            tenant_id=r.tenant_id,
+            date_debut=r.date_debut,
+            date_fin=r.date_fin,
+            total_transactions=r.total_transactions,
+            total_rapprochees=r.total_rapprochees,
+            total_ecarts=r.total_ecarts,
+            total_non_rapprochees=r.total_non_rapprochees,
+            statut=r.statut,
+            ran_at=r.ran_at,
+        )
+        for r in runs
+    ]

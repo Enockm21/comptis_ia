@@ -17,7 +17,9 @@ target_metadata = Base.metadata
 # Allow DATABASE_URL env var to override alembic.ini (used in CI / testcontainers)
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    # Alembic needs a sync driver — swap asyncpg for psycopg
+    sync_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+    config.set_main_option("sqlalchemy.url", sync_url)
 
 
 def run_migrations_offline() -> None:
