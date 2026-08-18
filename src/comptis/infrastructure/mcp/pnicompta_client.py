@@ -160,9 +160,6 @@ class PniComptaClient:
         provider = r.get("provider") or {}
         fournisseur = provider.get("name") or r.get("title") or ""
         billing_date = r.get("billing_date") or r.get("due_date") or ""
-        # is_paid (the supplier has been paid) is independent from is_reconciled
-        # (the invoice is linked to a bank transaction) — a paid invoice not yet
-        # linked to its transaction is exactly what this feature needs to see.
         statut = "rapprochee" if r.get("is_reconciled", False) else "non_rapprochee"
 
         return Facture(
@@ -171,4 +168,8 @@ class PniComptaClient:
             date=date.fromisoformat(billing_date) if billing_date else date.today(),
             fournisseur=fournisseur,
             statut_rapprochement=statut,
+            montant_ht=Decimal(str(r.get("amount_HT") or r.get("amount_TTC") or "0")),
+            montant_tva=Decimal(str(r.get("amount_tva") or "0")),
+            taux_tva=Decimal(str(r.get("tva_rate") or "0")),
+            type_facture=str(r.get("invoice_type") or "achat"),
         )

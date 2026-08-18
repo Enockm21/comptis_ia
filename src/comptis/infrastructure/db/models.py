@@ -228,3 +228,20 @@ class ReconciliationRunModel(Base):
     total_non_rapprochees: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
     statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="en_cours")
     ran_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+
+
+class TVADeclarationModel(Base):
+    __tablename__ = "tva_declarations"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    date_debut: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    date_fin: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    tva_collectee: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False, default=Decimal("0"))
+    tva_deductible: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False, default=Decimal("0"))
+    tva_nette: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False, default=Decimal("0"))
+    lignes: Mapped[dict] = mapped_column(sa.JSON, nullable=False, default=list)
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="brouillon")
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+    deposee_le: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    payee_le: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)

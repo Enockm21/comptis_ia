@@ -38,6 +38,13 @@ const NAV = [
       <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
     </svg>
   )},
+  { to: '/tva', label: 'TVA', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M9 14l6-6M10 9h.01M15 14h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 3"/>
+      <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  )},
   { to: '/integrations', label: 'Intégrations', icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <circle cx="9" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>

@@ -11,6 +11,7 @@ import PlanComptable from './pages/PlanComptable'
 import Categorisation from './pages/Categorisation'
 import Integrations from './pages/Integrations'
 import AdminIntegrations from './pages/AdminIntegrations'
+import TVA from './pages/TVA'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -37,6 +38,7 @@ function App() {
         <Route path="/ecritures" element={<AppShell><Ecritures /></AppShell>} />
         <Route path="/plan-comptable" element={<AppShell><PlanComptable /></AppShell>} />
         <Route path="/categorisation" element={<AppShell><Categorisation /></AppShell>} />
+        <Route path="/tva" element={<AppShell><TVA /></AppShell>} />
         <Route path="/integrations" element={<AppShell><Integrations /></AppShell>} />
         <Route
           path="/admin/integrations"

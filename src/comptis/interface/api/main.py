@@ -16,6 +16,7 @@ from comptis.interface.api.ecritures.router import router as ecritures_router
 from comptis.interface.api.plan_comptable_api.router import router as plan_comptable_router
 from comptis.interface.api.rapprochement.router import router as rapprochement_router
 from comptis.interface.api.tenancy.router import router as tenancy_router
+from comptis.interface.api.tva.router import router as tva_router
 
 app = FastAPI(title="Comptis API", version="0.1.0")
 
@@ -27,6 +28,7 @@ app.include_router(tenancy_router)
 app.include_router(categorization_router)
 app.include_router(ecritures_router)
 app.include_router(plan_comptable_router)
+app.include_router(tva_router)
 
 
 @app.get("/health")

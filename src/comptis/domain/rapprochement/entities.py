@@ -20,6 +20,10 @@ class Facture:
     fournisseur: str
     statut_rapprochement: RapprochementStatut
     transaction_id: str | None = None
+    montant_ht: Decimal = Decimal("0")
+    montant_tva: Decimal = Decimal("0")
+    taux_tva: Decimal = Decimal("0")
+    type_facture: str = "achat"  # "achat" | "vente"
 
 
 @dataclass

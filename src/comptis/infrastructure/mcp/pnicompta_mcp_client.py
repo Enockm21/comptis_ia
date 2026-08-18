@@ -163,4 +163,8 @@ class PniComptaMcpClient:
             date=date.fromisoformat(billing_date) if billing_date else date.today(),
             fournisseur=fournisseur,
             statut_rapprochement=statut,
+            montant_ht=Decimal(str(r.get("amount_HT") or r.get("amount_TTC") or "0")),
+            montant_tva=Decimal(str(r.get("amount_tva") or "0")),
+            taux_tva=Decimal(str(r.get("tva_rate") or "0")),
+            type_facture=str(r.get("invoice_type") or "achat"),
         )

@@ -15,6 +15,7 @@ export default defineConfig({
       '/plan-comptable': 'http://localhost:8000',
       '/api/categorization': 'http://localhost:8000',
       '/categorization': 'http://localhost:8000',
+      '/tva': 'http://localhost:8000',
     },
   },
 })
