@@ -204,11 +204,13 @@ export default function ReconciliationReport({ report, onRestart, tenantName }: 
               borderRadius: 12, overflow: 'hidden',
               overflowX: 'auto',
             }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
                 <thead>
                   <tr>
                     <th style={thStyle}>Facture</th>
                     <th style={thStyle}>Transaction</th>
+                    <th style={thStyle}>Libellé</th>
+                    <th style={thStyle}>Fournisseur</th>
                     <th style={thStyle}>Statut</th>
                     <th style={{ ...thStyle, textAlign: 'right' }}>Écart</th>
                     <th style={{ ...thStyle, textAlign: 'right' }}>Score</th>
@@ -219,6 +221,12 @@ export default function ReconciliationReport({ report, onRestart, tenantName }: 
                     <tr key={`${m.facture_id}-${m.transaction_id}`} style={{ transition: 'background 0.1s' }}>
                       <td style={{ ...tdStyle, fontFamily: 'var(--mono)', fontSize: 13 }}>{m.facture_id}</td>
                       <td style={{ ...tdStyle, fontFamily: 'var(--mono)', fontSize: 13 }}>{m.transaction_id}</td>
+                      <td style={{ ...tdStyle, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                        {m.libelle || '—'}
+                      </td>
+                      <td style={{ ...tdStyle, fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {m.fournisseur || '—'}
+                      </td>
                       <td style={tdStyle}><StatutBadge statut={m.statut} /></td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'var(--mono)' }}>
                         {parseFloat(m.ecart_montant) > 0.001 ? (

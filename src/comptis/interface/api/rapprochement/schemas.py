@@ -47,6 +47,8 @@ class MatchSchema(BaseModel):
     confidence: float
     ecart_montant: Decimal
     statut: str
+    libelle: str = ""
+    fournisseur: str = ""
 
 
 class TransactionSchema(BaseModel):

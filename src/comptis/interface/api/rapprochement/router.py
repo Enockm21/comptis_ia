@@ -243,6 +243,10 @@ async def get_report(
     report = run.get("report")
     if report is None:
         raise HTTPException(status_code=404, detail="Report not yet available")
+    # Build lookup maps for enriching matches
+    transactions_by_id = {t.id: t for t in run.get("transactions", [])}
+    factures_by_id = {f.id: f for f in run.get("factures", [])}
+
     return ReportResponse(
         tenant_id=report.tenant_id,
         date_debut=report.date_debut,
@@ -258,6 +262,8 @@ async def get_report(
                 confidence=m.confidence,
                 ecart_montant=m.ecart_montant,
                 statut=m.statut,
+                libelle=getattr(transactions_by_id.get(m.transaction_id), "libelle", ""),
+                fournisseur=getattr(factures_by_id.get(m.facture_id), "fournisseur", ""),
             )
             for m in report.matches
         ],

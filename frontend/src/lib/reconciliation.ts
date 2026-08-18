@@ -40,6 +40,8 @@ export interface MatchData {
   confidence: number
   ecart_montant: string
   statut: string
+  libelle: string
+  fournisseur: string
 }
 
 export interface Report {
