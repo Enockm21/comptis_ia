@@ -13,7 +13,7 @@ import ConflictReview from '../components/ConflictReview'
 import ReconciliationReport from '../components/ReconciliationReport'
 import { useTenant } from '../lib/TenantContext'
 
-type Step = 'trigger' | 'review' | 'report'
+type Step = 'trigger' | 'review' | 'report' | 'history-detail'
 
 const inputStyle: React.CSSProperties = {
   padding: '10px 14px',
@@ -42,6 +42,7 @@ export default function Reconciliation() {
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [history, setHistory] = useState<RunHistoryItem[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedRun, setSelectedRun] = useState<RunHistoryItem | null>(null)
   const [tenantId, setTenantId] = useState('')
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
@@ -129,6 +130,12 @@ export default function Reconciliation() {
     setTotalConflicts(0)
     setReport(null)
     setError(null)
+    setSelectedRun(null)
+  }
+
+  const handleViewDetail = (run: RunHistoryItem) => {
+    setSelectedRun(run)
+    setStep('history-detail')
   }
 
   const selectedTenant = tenants.find(t => t.id === tenantId)
@@ -149,6 +156,10 @@ export default function Reconciliation() {
 
   if (step === 'report' && report) {
     return <ReconciliationReport report={report} onRestart={handleRestart} tenantName={selectedTenant?.name} />
+  }
+
+  if (step === 'history-detail' && selectedRun) {
+    return <RunDetail run={selectedRun} onBack={handleRestart} />
   }
 
   return (
@@ -303,6 +314,7 @@ export default function Reconciliation() {
               {history.map((run, i) => (
                 <div
                   key={run.id}
+                  onClick={() => handleViewDetail(run)}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr auto',
@@ -311,7 +323,11 @@ export default function Reconciliation() {
                     borderBottom: i < history.length - 1 ? '1px solid var(--border)' : 'none',
                     background: 'var(--card-bg)',
                     alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'background 0.1s',
                   }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-bg)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}
                 >
                   <div>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>
@@ -327,17 +343,22 @@ export default function Reconciliation() {
                       {new Date(run.ran_at).toLocaleString('fr-FR')}
                     </p>
                   </div>
-                  <span style={{
-                    padding: '3px 10px',
-                    borderRadius: 20,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: run.statut === 'termine' ? '#d1fae5' : '#fef3c7',
-                    color: run.statut === 'termine' ? '#065f46' : '#92400e',
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {run.statut === 'termine' ? 'Terminé' : 'En cours'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      padding: '3px 10px',
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: run.statut === 'termine' ? '#d1fae5' : '#fef3c7',
+                      color: run.statut === 'termine' ? '#065f46' : '#92400e',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {run.statut === 'termine' ? 'Terminé' : 'En cours'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ color: 'var(--text)', flexShrink: 0 }}>
+                      <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </div>
                 </div>
               ))}
             </div>
@@ -348,3 +369,144 @@ export default function Reconciliation() {
   )
 }
 
+function RunDetail({ run, onBack }: { run: RunHistoryItem; onBack: () => void }) {
+  const totalMatched = run.total_rapprochees
+  const rate = run.total_transactions > 0
+    ? Math.round((totalMatched / run.total_transactions) * 100)
+    : 0
+
+  const barColor = rate >= 80 ? '#10b981' : rate >= 50 ? '#f59e0b' : '#ef4444'
+
+  return (
+    <div style={{ padding: '32px 36px', maxWidth: 680 }}>
+      {/* Back */}
+      <button
+        onClick={onBack}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text)', fontSize: 13, fontWeight: 500,
+          padding: 0, marginBottom: 24,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        Retour à l'historique
+      </button>
+
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          padding: '4px 12px', borderRadius: 20,
+          background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
+          marginBottom: 12,
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#aa3bff' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#aa3bff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Détail du rapprochement
+          </span>
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 6px', letterSpacing: '-0.4px' }}>
+          {new Date(run.date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          {' — '}
+          {new Date(run.date_fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--text)', margin: 0 }}>
+          Exécuté le {new Date(run.ran_at).toLocaleString('fr-FR')}
+        </p>
+      </div>
+
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Transactions analysées', value: run.total_transactions, color: 'var(--text-h)' },
+          { label: 'Rapprochées', value: totalMatched, color: '#10b981' },
+          { label: 'Dont écarts acceptés', value: run.total_ecarts, color: '#f59e0b' },
+          { label: 'Non rapprochées', value: run.total_non_rapprochees, color: '#ef4444' },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{
+            border: '1px solid var(--border)', borderRadius: 12,
+            padding: '18px 20px', background: 'var(--card-bg)',
+          }}>
+            <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text)' }}>{label}</p>
+            <p style={{ margin: 0, fontSize: 30, fontWeight: 700, color, letterSpacing: '-0.5px' }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Rate bar */}
+      <div style={{
+        border: '1px solid var(--border)', borderRadius: 12,
+        padding: '20px 22px', background: 'var(--card-bg)', marginBottom: 20,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)' }}>Taux de rapprochement</span>
+          <span style={{ fontSize: 26, fontWeight: 700, color: barColor }}>{rate}%</span>
+        </div>
+        <div style={{ height: 10, background: 'var(--border)', borderRadius: 5, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', width: `${rate}%`,
+            borderRadius: 5,
+            background: barColor,
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+          <span style={{ fontSize: 11, color: 'var(--text)' }}>0%</span>
+          <span style={{ fontSize: 11, color: 'var(--text)' }}>100%</span>
+        </div>
+      </div>
+
+      {/* Visual breakdown */}
+      {run.total_transactions > 0 && (
+        <div style={{
+          border: '1px solid var(--border)', borderRadius: 12,
+          padding: '20px 22px', background: 'var(--card-bg)',
+        }}>
+          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>Répartition</p>
+          <div style={{ display: 'flex', height: 16, borderRadius: 8, overflow: 'hidden', gap: 2 }}>
+            {[
+              { n: run.total_rapprochees - run.total_ecarts, color: '#10b981' },
+              { n: run.total_ecarts, color: '#f59e0b' },
+              { n: run.total_non_rapprochees, color: '#ef4444' },
+            ].map(({ n, color }, i) => n > 0 ? (
+              <div key={i} style={{
+                flex: n,
+                background: color,
+                borderRadius: i === 0 ? '8px 0 0 8px' : i === 2 ? '0 8px 8px 0' : 0,
+              }} />
+            ) : null)}
+          </div>
+          <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+            {[
+              { label: 'Confirmées', color: '#10b981' },
+              { label: 'Écarts acceptés', color: '#f59e0b' },
+              { label: 'Non rapprochées', color: '#ef4444' },
+            ].map(({ label, color }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+                <span style={{ fontSize: 11, color: 'var(--text)' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Launch new */}
+      <button
+        onClick={onBack}
+        style={{
+          marginTop: 24, width: '100%',
+          padding: '12px', borderRadius: 10, border: 'none',
+          background: 'linear-gradient(135deg, #aa3bff, #7c3aed)',
+          color: '#fff', fontSize: 14, fontWeight: 600,
+          cursor: 'pointer', boxShadow: '0 2px 8px rgba(170,59,255,0.25)',
+        }}
+      >
+        Nouveau rapprochement
+      </button>
+    </div>
+  )
+}
