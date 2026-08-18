@@ -88,8 +88,8 @@ async def run_reconciliation(
     matches = result.get("matches", [])
     unmatched = result.get("unmatched", [])
     pending = result.get("pending_review", [])
-    total_rapprochees = sum(1 for m in matches if m.statut == "confirme")
     total_ecarts = sum(1 for m in matches if m.statut == "ecart")
+    total_rapprochees = sum(1 for m in matches if m.statut == "confirme") + total_ecarts
     total_non_rapprochees = len(unmatched)
     total_transactions = total_rapprochees + total_ecarts + total_non_rapprochees + len(pending)
     run_repo = SQLAlchemyReconciliationRunRepository(session)

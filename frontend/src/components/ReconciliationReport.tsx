@@ -77,8 +77,9 @@ const tdStyle: React.CSSProperties = {
 }
 
 export default function ReconciliationReport({ report, onRestart, tenantName }: Props) {
+  const totalMatched = report.total_rapprochees + report.total_ecarts
   const rapprochRate = report.total_transactions > 0
-    ? Math.round((report.total_rapprochees / report.total_transactions) * 100)
+    ? Math.round((totalMatched / report.total_transactions) * 100)
     : 0
 
   return (
@@ -155,7 +156,7 @@ export default function ReconciliationReport({ report, onRestart, tenantName }: 
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 32 }}>
           <StatCard label="Transactions" value={report.total_transactions} color="var(--text-h)" />
-          <StatCard label="Rapprochées" value={report.total_rapprochees} color="#16a34a" />
+          <StatCard label="Rapprochées" value={totalMatched} color="#16a34a" />
           <StatCard label="Non rapprochées" value={report.total_non_rapprochees} color="#dc2626" />
           <StatCard label="Écarts acceptés" value={report.total_ecarts} color="#d97706" />
         </div>
