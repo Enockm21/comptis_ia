@@ -8,9 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import Body
+from pydantic import BaseModel
+
 from comptis.application.tva.use_cases import ComputeTVA
 from comptis.infrastructure.pdf.ca3_generator import CA3Data, generate_ca3
+from comptis.infrastructure.pdf.ca3_overlay import CA3OverlayData, fill_ca3
 from comptis.domain.tva.entities import TVADeclaration
+from comptis.infrastructure.db.models import CA3DeclarationModel
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
 from comptis.infrastructure.db.tva_repository import SQLAlchemyTVARepository
@@ -23,6 +28,39 @@ from comptis.interface.api.tva.schemas import (
     TVALineSchema,
     TVAStatutUpdate,
 )
+from sqlalchemy import select
+
+
+class CA3Schema(BaseModel):
+    tenant_id: uuid.UUID
+    periode_debut: date
+    periode_fin: date
+    raison_sociale: str = ""
+    adresse: str = ""
+    code_postal_ville: str = ""
+    siret: str = ""
+    numero_tva: str = ""
+    a1_ventes: Decimal = Decimal(0)
+    l08_base: Decimal = Decimal(0)
+    l08_taxe: Decimal = Decimal(0)
+    l09_base: Decimal = Decimal(0)
+    l09_taxe: Decimal = Decimal(0)
+    l9b_base: Decimal = Decimal(0)
+    l9b_taxe: Decimal = Decimal(0)
+    l16_brute: Decimal = Decimal(0)
+    l19_immos: Decimal = Decimal(0)
+    l20_autres: Decimal = Decimal(0)
+    l22_report: Decimal = Decimal(0)
+    l23_total_ded: Decimal = Decimal(0)
+    tva_due: Decimal = Decimal(0)
+    credit_tva: Decimal = Decimal(0)
+
+    class Config:
+        from_attributes = True
+
+
+class CA3SavedSchema(CA3Schema):
+    id: uuid.UUID
 
 router = APIRouter(prefix="/tva", tags=["tva"])
 
@@ -226,3 +264,160 @@ async def update_statut(
         deposee_le=model.deposee_le,
         payee_le=model.payee_le,
     )
+
+
+# ── CA3 editor endpoints ────────────────────────────────────────────────────
+
+
+@router.get("/ca3-compute", response_model=CA3Schema)
+async def ca3_compute(
+    tenant_id: uuid.UUID,
+    date_debut: date,
+    date_fin: date,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> CA3Schema:
+    """Compute TVA for period and return CA3 form values (pre-fill)."""
+    tenant = await _get_tenant(tenant_id, session, user_id)
+    mcp_client = await build_mcp_client_for_org(tenant.organization_id, session)
+    summary = await ComputeTVA(mcp_client).execute(tenant_id, date_debut, date_fin)
+
+    cbase = {str(l.taux): l.base_ht for l in summary.lignes_collectee}
+    ctva = {str(l.taux): l.montant_tva for l in summary.lignes_collectee}
+
+    l08_base = cbase.get("20.00", Decimal(0))
+    l08_taxe = ctva.get("20.00", Decimal(0))
+    l9b_base = cbase.get("10.00", Decimal(0))
+    l9b_taxe = ctva.get("10.00", Decimal(0))
+    l09_base = cbase.get("5.50", Decimal(0))
+    l09_taxe = ctva.get("5.50", Decimal(0))
+    l16_brute = l08_taxe + l9b_taxe + l09_taxe
+    l20_autres = summary.tva_deductible
+    l23_total_ded = l20_autres
+    a1_ventes = sum(cbase.values(), Decimal(0))
+
+    tva_due = Decimal(0)
+    credit_tva = Decimal(0)
+    if l16_brute >= l23_total_ded:
+        tva_due = l16_brute - l23_total_ded
+    else:
+        credit_tva = l23_total_ded - l16_brute
+
+    return CA3Schema(
+        tenant_id=tenant_id,
+        periode_debut=date_debut,
+        periode_fin=date_fin,
+        raison_sociale=getattr(tenant, "name", "") or "",
+        adresse=getattr(tenant, "adresse", "") or "",
+        code_postal_ville=getattr(tenant, "code_postal_ville", "") or "",
+        siret=getattr(tenant, "siret", "") or "",
+        numero_tva=getattr(tenant, "numero_tva", "") or "",
+        a1_ventes=a1_ventes,
+        l08_base=l08_base,
+        l08_taxe=l08_taxe,
+        l09_base=l09_base,
+        l09_taxe=l09_taxe,
+        l9b_base=l9b_base,
+        l9b_taxe=l9b_taxe,
+        l16_brute=l16_brute,
+        l19_immos=Decimal(0),
+        l20_autres=l20_autres,
+        l22_report=Decimal(0),
+        l23_total_ded=l23_total_ded,
+        tva_due=tva_due,
+        credit_tva=credit_tva,
+    )
+
+
+@router.post("/ca3-fill")
+async def ca3_fill(
+    body: CA3Schema,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Fill the official CA3 PDF template with given values, return PDF bytes."""
+    await _get_tenant(body.tenant_id, session, user_id)
+    import logging
+    try:
+        data = CA3OverlayData(
+            periode_debut=body.periode_debut,
+            periode_fin=body.periode_fin,
+            raison_sociale=body.raison_sociale,
+            adresse=body.adresse,
+            code_postal_ville=body.code_postal_ville,
+            siret=body.siret,
+            numero_tva=body.numero_tva,
+            a1_ventes=body.a1_ventes,
+            l08_base=body.l08_base,
+            l08_taxe=body.l08_taxe,
+            l09_base=body.l09_base,
+            l09_taxe=body.l09_taxe,
+            l9b_base=body.l9b_base,
+            l9b_taxe=body.l9b_taxe,
+            l16_brute=body.l16_brute,
+            l19_immos=body.l19_immos,
+            l20_autres=body.l20_autres,
+            l22_report=body.l22_report,
+            l23_total_ded=body.l23_total_ded,
+            tva_due=body.tva_due,
+            credit_tva=body.credit_tva,
+        )
+        pdf_bytes = fill_ca3(data)
+    except Exception as exc:
+        logging.exception("ca3 fill failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    month = body.periode_debut.strftime("%Y-%m")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="CA3_{month}.pdf"'},
+    )
+
+
+@router.post("/ca3-declarations", response_model=CA3SavedSchema, status_code=201)
+async def ca3_save(
+    body: CA3Schema,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> CA3SavedSchema:
+    """Save CA3 declaration values to DB (upsert on tenant+periode)."""
+    await _get_tenant(body.tenant_id, session, user_id)
+
+    result = await session.execute(
+        select(CA3DeclarationModel).where(
+            CA3DeclarationModel.tenant_id == body.tenant_id,
+            CA3DeclarationModel.periode_debut == body.periode_debut,
+        )
+    )
+    model = result.scalar_one_or_none()
+    if model is None:
+        model = CA3DeclarationModel(tenant_id=body.tenant_id)
+        session.add(model)
+
+    for f in ["periode_debut", "periode_fin", "raison_sociale", "adresse",
+              "code_postal_ville", "siret", "numero_tva", "a1_ventes",
+              "l08_base", "l08_taxe", "l09_base", "l09_taxe", "l9b_base",
+              "l9b_taxe", "l16_brute", "l19_immos", "l20_autres", "l22_report",
+              "l23_total_ded", "tva_due", "credit_tva"]:
+        setattr(model, f, getattr(body, f))
+
+    await session.flush()
+    await session.commit()
+    await session.refresh(model)
+    return CA3SavedSchema.model_validate(model)
+
+
+@router.get("/ca3-declarations", response_model=list[CA3SavedSchema])
+async def ca3_list(
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> list[CA3SavedSchema]:
+    await _get_tenant(tenant_id, session, user_id)
+    result = await session.execute(
+        select(CA3DeclarationModel)
+        .where(CA3DeclarationModel.tenant_id == tenant_id)
+        .order_by(CA3DeclarationModel.periode_debut.desc())
+    )
+    return [CA3SavedSchema.model_validate(m) for m in result.scalars().all()]

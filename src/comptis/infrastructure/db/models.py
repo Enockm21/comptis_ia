@@ -249,3 +249,33 @@ class TVADeclarationModel(Base):
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
     deposee_le: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     payee_le: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+
+
+class CA3DeclarationModel(Base):
+    __tablename__ = "ca3_declarations"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    periode_debut: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    periode_fin: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    raison_sociale: Mapped[str | None] = mapped_column(sa.String(255), nullable=True)
+    adresse: Mapped[str | None] = mapped_column(sa.String(255), nullable=True)
+    code_postal_ville: Mapped[str | None] = mapped_column(sa.String(100), nullable=True)
+    siret: Mapped[str | None] = mapped_column(sa.String(20), nullable=True)
+    numero_tva: Mapped[str | None] = mapped_column(sa.String(25), nullable=True)
+    a1_ventes: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l08_base: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l08_taxe: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l09_base: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l09_taxe: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l9b_base: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l9b_taxe: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l16_brute: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l19_immos: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l20_autres: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l22_report: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    l23_total_ded: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    tva_due: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    credit_tva: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
