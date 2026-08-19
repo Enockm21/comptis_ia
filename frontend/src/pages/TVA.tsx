@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTenant } from '../lib/TenantContext'
-import { computeTVA, createDeclaration, listDeclarations, updateStatut } from '../lib/tva'
+import { computeTVA, createDeclaration, exportCA3, listDeclarations, updateStatut } from '../lib/tva'
 import type { TVACompute, TVADeclaration, TVALine } from '../lib/tva'
 
 const fmt = (v: string | number) =>
@@ -81,6 +81,7 @@ export default function TVA() {
   const [compute, setCompute] = useState<TVACompute | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [history, setHistory] = useState<TVADeclaration[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -223,10 +224,26 @@ export default function TVA() {
           <TVALineTable lines={compute.lignes_collectee} label="TVA collectée (ventes) par taux" />
           <TVALineTable lines={compute.lignes_deductible} label="TVA déductible (achats) par taux" />
 
-          {/* Save button */}
+          {/* Action buttons */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
             <button onClick={() => setCompute(null)} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
               Annuler
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedTenant) return
+                setExporting(true)
+                try {
+                  await exportCA3(selectedTenant.id, dateDebut, dateFin)
+                } catch {
+                  setError('Erreur lors de l\'export PDF')
+                } finally {
+                  setExporting(false)
+                }
+              }}
+              disabled={exporting}
+              style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid #00348A', background: 'transparent', color: '#00348A', fontSize: 14, fontWeight: 600, cursor: exporting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {exporting ? 'Génération…' : '↓ Télécharger CA3 PDF'}
             </button>
             <button onClick={handleSave} disabled={saving}
               style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #aa3bff, #7c3aed)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
@@ -273,7 +290,16 @@ export default function TVA() {
                       </td>
                       <td style={{ padding: '12px 14px' }}><Badge statut={d.statut} /></td>
                       <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            onClick={async () => {
+                              if (!selectedTenant) return
+                              try { await exportCA3(selectedTenant.id, d.date_debut, d.date_fin) }
+                              catch { alert('Erreur export PDF') }
+                            }}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #00348A', background: 'transparent', color: '#00348A', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                            ↓ CA3
+                          </button>
                           {d.statut === 'brouillon' && (
                             <button onClick={() => handleStatut(d.id, 'deposee')}
                               style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #2563eb', background: 'transparent', color: '#2563eb', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>

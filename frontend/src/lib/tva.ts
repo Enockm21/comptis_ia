@@ -65,6 +65,20 @@ export async function listDeclarations(tenantId: string): Promise<TVADeclaration
   return res.json()
 }
 
+export async function exportCA3(tenantId: string, dateDebut: string, dateFin: string): Promise<void> {
+  const params = new URLSearchParams({ tenant_id: tenantId, date_debut: dateDebut, date_fin: dateFin })
+  const res = await fetchWithAuth(`/tva/export-ca3?${params}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const month = dateDebut.slice(0, 7)
+  a.href = url
+  a.download = `CA3_${month}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function updateStatut(declarationId: string, statut: string): Promise<TVADeclaration> {
   const res = await fetchWithAuth(`/tva/declarations/${declarationId}/statut`, {
     method: 'PATCH',

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from comptis.application.tva.use_cases import ComputeTVA
+from comptis.infrastructure.pdf.ca3_generator import CA3Data, generate_ca3
 from comptis.domain.tva.entities import TVADeclaration
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
 from comptis.infrastructure.db.tenant_context import set_tenant_context
@@ -126,6 +129,68 @@ async def list_declarations(
         )
         for m in models
     ]
+
+
+@router.get("/export-ca3")
+async def export_ca3(
+    tenant_id: uuid.UUID,
+    date_debut: date,
+    date_fin: date,
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Génère le formulaire CA3 en PDF pour la période donnée."""
+    tenant = await _get_tenant(tenant_id, session, user_id)
+    mcp_client = await build_mcp_client_for_org(tenant.organization_id, session)
+    summary = await ComputeTVA(mcp_client).execute(tenant_id, date_debut, date_fin)
+
+    # Récupère base HT par taux depuis les lignes déductibles
+    base_by_taux: dict[str, Decimal] = {str(l.taux): l.base_ht for l in summary.lignes_deductible}
+    tva_by_taux: dict[str, Decimal] = {str(l.taux): l.montant_tva for l in summary.lignes_deductible}
+
+    # Base HT collectée par taux
+    cbase_by_taux: dict[str, Decimal] = {str(l.taux): l.base_ht for l in summary.lignes_collectee}
+    ctva_by_taux: dict[str, Decimal] = {str(l.taux): l.montant_tva for l in summary.lignes_collectee}
+
+    # Récupère les infos société depuis le tenant (champs étendus optionnels)
+    org_name = getattr(tenant, "name", None) or getattr(tenant, "nom", None) or "ENTREPRISE"
+    adresse = getattr(tenant, "adresse", "") or ""
+    cp_ville = getattr(tenant, "code_postal_ville", "") or ""
+    siret = getattr(tenant, "siret", "") or "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _"
+    tva_intra = getattr(tenant, "numero_tva", "") or "FR _ _ _ _ _ _ _ _ _ _ _"
+
+    data = CA3Data(
+        raison_sociale=org_name,
+        adresse=adresse,
+        code_postal_ville=cp_ville,
+        siret=siret,
+        tva_intracomm=tva_intra,
+        periode_debut=date_debut,
+        periode_fin=date_fin,
+        # TVA brute (collectée = ventes)
+        b08_base_20=cbase_by_taux.get("20.00", Decimal("0")),
+        b08_taxe_20=ctva_by_taux.get("20.00", Decimal("0")),
+        b9b_base_10=cbase_by_taux.get("10.00", Decimal("0")),
+        b9b_taxe_10=ctva_by_taux.get("10.00", Decimal("0")),
+        b09_base_55=cbase_by_taux.get("5.50", Decimal("0")),
+        b09_taxe_55=ctva_by_taux.get("5.50", Decimal("0")),
+        # TVA déductible (achats)
+        ded_20_autres=summary.tva_deductible,
+    )
+
+    import logging
+    try:
+        pdf_bytes = generate_ca3(data)
+    except Exception as exc:
+        logging.exception("ca3 generation failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    filename = f"CA3_{date_debut.strftime('%Y-%m')}_{org_name.replace(' ', '_')}.pdf"
+    return Response(
+        content=bytes(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/declarations/{declaration_id}/statut", response_model=TVADeclarationResponse)
