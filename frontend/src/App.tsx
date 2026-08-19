@@ -12,6 +12,7 @@ import Categorisation from './pages/Categorisation'
 import Integrations from './pages/Integrations'
 import AdminIntegrations from './pages/AdminIntegrations'
 import TVA from './pages/TVA'
+import Parametres from './pages/Parametres'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -40,6 +41,7 @@ function App() {
         <Route path="/categorisation" element={<AppShell><Categorisation /></AppShell>} />
         <Route path="/tva" element={<AppShell><TVA /></AppShell>} />
         <Route path="/integrations" element={<AppShell><Integrations /></AppShell>} />
+        <Route path="/parametres" element={<AppShell><Parametres /></AppShell>} />
         <Route
           path="/admin/integrations"
           element={

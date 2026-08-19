@@ -23,6 +23,10 @@ class Tenant:
     name: str
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=_now)
+    siret: str | None = None
+    numero_tva: str | None = None
+    adresse: str | None = None
+    code_postal_ville: str | None = None
 
 
 @dataclass

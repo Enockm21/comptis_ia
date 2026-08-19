@@ -14,7 +14,16 @@ def _org_to_domain(m: OrganizationModel) -> Organization:
 
 
 def _tenant_to_domain(m: TenantModel) -> Tenant:
-    return Tenant(id=m.id, organization_id=m.organization_id, name=m.name, created_at=m.created_at)
+    return Tenant(
+        id=m.id,
+        organization_id=m.organization_id,
+        name=m.name,
+        created_at=m.created_at,
+        siret=m.siret,
+        numero_tva=m.numero_tva,
+        adresse=m.adresse,
+        code_postal_ville=m.code_postal_ville,
+    )
 
 
 def _user_to_domain(m: UserModel) -> User:
@@ -62,6 +71,17 @@ class SQLAlchemyTenantRepository:
             select(TenantModel).where(TenantModel.organization_id == org_id)
         )
         return [_tenant_to_domain(m) for m in result.scalars().all()]
+
+    async def update_info(self, tenant_id: UUID, **fields: str | None) -> Tenant | None:
+        result = await self._session.execute(select(TenantModel).where(TenantModel.id == tenant_id))
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        for key, val in fields.items():
+            if hasattr(model, key):
+                setattr(model, key, val)
+        await self._session.flush()
+        return _tenant_to_domain(model)
 
     async def list_visible(self, session: AsyncSession) -> list[Tenant]:
         # No WHERE clause — RLS (membership_access) does the filtering under

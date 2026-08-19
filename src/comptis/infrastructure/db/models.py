@@ -34,6 +34,10 @@ class TenantModel(Base):
         sa.Uuid, sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    siret: Mapped[str | None] = mapped_column(sa.String(20), nullable=True)
+    numero_tva: Mapped[str | None] = mapped_column(sa.String(20), nullable=True)
+    adresse: Mapped[str | None] = mapped_column(sa.String(255), nullable=True)
+    code_postal_ville: Mapped[str | None] = mapped_column(sa.String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), nullable=False, default=_now
     )
