@@ -20,6 +20,7 @@ class ComputeTVA:
         date_fin: date,
     ) -> TVASummary:
         factures = await self._client.list_factures(
+            statut="rapprochee",
             date_debut=date_debut,
             date_fin=date_fin,
             verified_only=True,
