@@ -167,26 +167,31 @@ def _page2(ew, data: CA3OverlayData) -> None:
 
 
 def _page3(ew, data: CA3OverlayData) -> None:
-    # Ligne 16 Total TVA brute – y=818.4, x=525.5
-    ew(525.5, 818.4, _fmt(data.l16_brute))
+    # Colonnes droites: les pointillés (…………) commencent à x≈525 mais la
+    # cellule se termine à x≈575. On écrase depuis x=505, largeur=70 pour
+    # que la valeur reste dans la cellule.
+    _R = dict(w_pts=70, h_pts=8)  # right-column params
+
+    # Ligne 16 Total TVA brute – y=818.4
+    ew(505, 818.4, _fmt(data.l16_brute), **_R)
 
     # Ligne 19 immos (0703) – y=764.0
-    ew(525.5, 764.0, _fmt(data.l19_immos))
+    ew(505, 764.0, _fmt(data.l19_immos), **_R)
 
     # Ligne 20 autres (0702) – y=750.5
-    ew(525.5, 750.5, _fmt(data.l20_autres))
+    ew(505, 750.5, _fmt(data.l20_autres), **_R)
 
     # Ligne 22 report (8001) – y=699.2
-    ew(525.5, 699.2, _fmt(data.l22_report))
+    ew(505, 699.2, _fmt(data.l22_report), **_R)
 
-    # Ligne 23 total déductible – y=672.1, box |___________|
-    ew(526.8, 672.1, _fmt(data.l23_total_ded), w_pts=60, h_pts=6)
+    # Ligne 23 total déductible – y=672.1, encadré |___________|
+    ew(505, 672.1, _fmt(data.l23_total_ded), w_pts=70, h_pts=7)
 
-    # TD TVA due (8900) – y=601.0, x=525.5
-    ew(525.5, 601.0, _fmt(data.tva_due))
+    # TD TVA due (8900) – y=601.0
+    ew(505, 601.0, _fmt(data.tva_due), **_R)
 
-    # Ligne 25 Crédit TVA (0705) – y=601.0, x=242.8
-    ew(242.8, 601.0, _fmt(data.credit_tva))
+    # Ligne 25 Crédit TVA (0705) – y=601.0, colonne gauche x≈242
+    ew(222, 601.0, _fmt(data.credit_tva), w_pts=70, h_pts=8)
 
 
 def fill_ca3(data: CA3OverlayData, template: Path = TEMPLATE_PATH) -> bytes:
