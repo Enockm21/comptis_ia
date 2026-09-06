@@ -71,7 +71,8 @@ export default function Parametres() {
       })
       // Refresh tenant in context
       const refreshed = tenants.map(t => t.id === updated.id ? updated : t)
-      setSelected(refreshed.find(t => t.id === updated.id) ?? null)
+      const found = refreshed.find(t => t.id === updated.id)
+      if (found) setSelected(found)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {

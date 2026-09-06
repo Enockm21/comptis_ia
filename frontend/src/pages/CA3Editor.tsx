@@ -29,28 +29,6 @@ interface CA3Data {
   credit_tva: string
 }
 
-const EMPTY = (tenantId: string): CA3Data => ({
-  tenant_id: tenantId,
-  periode_debut: '',
-  periode_fin: '',
-  raison_sociale: '',
-  adresse: '',
-  code_postal_ville: '',
-  siret: '',
-  numero_tva: '',
-  a1_ventes: '0',
-  l08_base: '0', l08_taxe: '0',
-  l09_base: '0', l09_taxe: '0',
-  l9b_base: '0', l9b_taxe: '0',
-  l16_brute: '0',
-  l19_immos: '0',
-  l20_autres: '0',
-  l22_report: '0',
-  l23_total_ded: '0',
-  tva_due: '0',
-  credit_tva: '0',
-})
-
 // ── Styles ─────────────────────────────────────────────────────────────────
 
 const fieldRow: React.CSSProperties = { display: 'flex', gap: 8, marginBottom: 8 }
@@ -74,7 +52,7 @@ const sectionTitle: React.CSSProperties = {
 }
 
 const btn = (primary = false): React.CSSProperties => ({
-  padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+  padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
   fontSize: 13, fontWeight: 600,
   background: primary ? 'linear-gradient(135deg,#aa3bff,#7c3aed)' : 'var(--card-bg)',
   color: primary ? '#fff' : 'var(--text-h)',

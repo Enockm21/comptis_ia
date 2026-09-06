@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { clearToken } from '../lib/auth'
 import { useTenant } from '../lib/TenantContext'
+import { cn } from '@/lib/utils'
 
 const NAV = [
   { to: '/dashboard', label: 'Tableau de bord', icon: (
@@ -80,48 +81,27 @@ export default function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100svh', background: 'var(--bg)' }}>
+    <div className="flex min-h-svh bg-[var(--bg)]">
       {/* Sidebar */}
-      <aside style={{
-        width: 240,
-        flexShrink: 0,
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'sticky',
-        top: 0,
-        height: '100svh',
-        overflowY: 'auto',
-      }}>
+      <aside className="w-60 shrink-0 border-r border-[var(--border)] flex flex-col sticky top-0 h-svh overflow-y-auto">
+
         {/* Logo */}
-        <div style={{
-          padding: '18px 20px 16px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 9,
-            background: 'linear-gradient(135deg, #aa3bff, #7c3aed)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 2px 8px rgba(170,59,255,0.3)',
-          }}>
+        <div className="flex items-center gap-2.5 px-5 py-[18px] border-b border-[var(--border)]">
+          <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(170,59,255,0.3)]">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M9 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
               <path d="M15 3h6v6M10 14 21 3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--text-h)', letterSpacing: '-0.3px' }}>
+          <span className="font-bold text-[17px] text-[var(--text-h)] tracking-[-0.3px]">
             Comptis
           </span>
         </div>
 
         {/* Tenant selector */}
         {tenants.length > 0 && (
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
+          <div className="px-4 py-3.5 border-b border-[var(--border)]">
+            <p className="text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.08em] mb-2">
               Client actif
             </p>
             <select
@@ -130,18 +110,7 @@ export default function Shell({ children }: { children: ReactNode }) {
                 const t = tenants.find(x => x.id === e.target.value)
                 if (t) setSelected(t)
               }}
-              style={{
-                width: '100%',
-                padding: '7px 10px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--code-bg)',
-                color: 'var(--text-h)',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                outline: 'none',
-              }}
+              className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--code-bg)] text-[var(--text-h)] text-[13px] font-medium cursor-pointer outline-none"
             >
               {tenants.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
@@ -151,51 +120,29 @@ export default function Shell({ children }: { children: ReactNode }) {
         )}
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '10px 10px' }}>
+        <nav className="flex-1 p-2.5">
           {NAV.map(({ to, label, icon }) => (
             <NavLink
               key={to}
               to={to}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '9px 12px',
-                borderRadius: 8,
-                marginBottom: 2,
-                textDecoration: 'none',
-                fontSize: 14,
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#aa3bff' : 'var(--text)',
-                background: isActive ? 'var(--accent-bg)' : 'transparent',
-                transition: 'background 0.1s, color 0.1s',
-              })}
+              className={({ isActive }) => cn(
+                'flex items-center gap-2.5 px-3 py-2.5 rounded-lg mb-0.5 no-underline text-[14px] transition-[background,color] duration-100',
+                isActive
+                  ? 'font-semibold text-[var(--accent)] bg-[var(--accent-bg)]'
+                  : 'font-normal text-[var(--text)] hover:bg-[var(--code-bg)]'
+              )}
             >
-              <span style={{ flexShrink: 0, opacity: 0.85 }}>{icon}</span>
+              <span className="shrink-0 opacity-85">{icon}</span>
               {label}
             </NavLink>
           ))}
         </nav>
 
         {/* Logout */}
-        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
+        <div className="px-3.5 py-3 border-t border-[var(--border)]">
           <button
             onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text)',
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              transition: 'background 0.1s',
-            }}
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-transparent text-[var(--text)] text-[13px] font-medium cursor-pointer flex items-center gap-2 transition-[background] duration-100 hover:bg-[var(--code-bg)]"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -208,7 +155,7 @@ export default function Shell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main */}
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
+      <main className="flex-1 overflow-y-auto min-w-0">
         {children}
       </main>
     </div>
