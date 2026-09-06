@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTenant } from '../lib/TenantContext'
 import { computeTVA, createDeclaration, exportCA3, listDeclarations, updateStatut } from '../lib/tva'
 import type { TVACompute, TVADeclaration, TVALine } from '../lib/tva'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const fmt = (v: string | number) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(Number(v))
@@ -12,7 +14,7 @@ const fmtDate = (d: string) =>
 function periodDefaults() {
   const now = new Date()
   const y = now.getFullYear()
-  const m = now.getMonth() // 0-based
+  const m = now.getMonth()
   const debut = new Date(y, m - 1, 1)
   const fin = new Date(y, m, 0)
   return {
@@ -21,16 +23,16 @@ function periodDefaults() {
   }
 }
 
-const STATUT_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  brouillon: { label: 'Brouillon', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-  deposee: { label: 'Déposée', color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
-  payee: { label: 'Payée', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+const STATUT_MAP: Record<string, { label: string; classes: string }> = {
+  brouillon: { label: 'Brouillon', classes: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+  deposee:   { label: 'Déposée',   classes: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  payee:     { label: 'Payée',     classes: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
 }
 
-function Badge({ statut }: { statut: string }) {
-  const s = STATUT_STYLE[statut] ?? STATUT_STYLE.brouillon
+function StatutBadge({ statut }: { statut: string }) {
+  const s = STATUT_MAP[statut] ?? STATUT_MAP.brouillon
   return (
-    <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, color: s.color, background: s.bg }}>
+    <span className={cn('px-2.5 py-0.5 rounded-md text-[12px] font-semibold', s.classes)}>
       {s.label}
     </span>
   )
@@ -39,32 +41,29 @@ function Badge({ statut }: { statut: string }) {
 function TVALineTable({ lines, label }: { lines: TVALine[]; label: string }) {
   if (lines.length === 0) return null
   return (
-    <div style={{ marginBottom: 20 }}>
-      <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>{label}</p>
-      <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className="mb-5">
+      <p className="m-0 mb-2 text-[13px] font-semibold text-[var(--text-h)]">{label}</p>
+      <div className="border border-[var(--border)] rounded-[10px] overflow-hidden">
+        <table className="w-full border-collapse">
           <thead>
-            <tr style={{ background: 'rgba(107,99,117,0.04)' }}>
+            <tr className="bg-[rgba(107,99,117,0.04)]">
               {['Taux TVA', 'Base HT', 'Montant TVA', 'Nb factures'].map(h => (
-                <th key={h} style={{ padding: '9px 14px', textAlign: h === 'Taux TVA' || h === 'Nb factures' ? 'left' : 'right', fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                <th key={h} className={cn(
+                  'px-3.5 py-2.5 text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.07em] border-b border-[var(--border)]',
+                  h === 'Taux TVA' || h === 'Nb factures' ? 'text-left' : 'text-right'
+                )}>
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {lines.map((l, i) => (
-              <tr key={i}>
-                <td style={{ padding: '10px 14px', fontSize: 14, color: 'var(--text-h)', borderBottom: i < lines.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  {Number(l.taux).toFixed(1)}%
-                </td>
-                <td style={{ padding: '10px 14px', fontSize: 14, color: 'var(--text-h)', textAlign: 'right', fontFamily: 'monospace', borderBottom: i < lines.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  {fmt(l.base_ht)}
-                </td>
-                <td style={{ padding: '10px 14px', fontSize: 14, fontWeight: 600, color: 'var(--text-h)', textAlign: 'right', fontFamily: 'monospace', borderBottom: i < lines.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  {fmt(l.montant_tva)}
-                </td>
-                <td style={{ padding: '10px 14px', fontSize: 14, color: 'var(--text)', borderBottom: i < lines.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  {l.nb_factures}
-                </td>
+              <tr key={i} className={i < lines.length - 1 ? 'border-b border-[var(--border)]' : ''}>
+                <td className="px-3.5 py-2.5 text-[14px] text-[var(--text-h)]">{Number(l.taux).toFixed(1)}%</td>
+                <td className="px-3.5 py-2.5 text-[14px] text-[var(--text-h)] text-right font-mono tabular-nums">{fmt(l.base_ht)}</td>
+                <td className="px-3.5 py-2.5 text-[14px] font-semibold text-[var(--text-h)] text-right font-mono tabular-nums">{fmt(l.montant_tva)}</td>
+                <td className="px-3.5 py-2.5 text-[14px] text-[var(--text)]">{l.nb_factures}</td>
               </tr>
             ))}
           </tbody>
@@ -90,7 +89,7 @@ export default function TVA() {
     setHistoryLoading(true)
     try {
       setHistory(await listDeclarations(tid))
-    } catch { /* ignore */ } finally {
+    } catch { } finally {
       setHistoryLoading(false)
     }
   }, [])
@@ -139,7 +138,7 @@ export default function TVA() {
     try {
       await updateStatut(id, statut)
       await loadHistory(selectedTenant.id)
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   function setPreset(months: number) {
@@ -155,120 +154,134 @@ export default function TVA() {
   const netteColor = nette < 0 ? '#10b981' : nette > 0 ? '#ef4444' : 'var(--text-h)'
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 760 }}>
+    <div className="px-9 py-8 max-w-[760px]">
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 20, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', marginBottom: 12 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#aa3bff' }} />
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#aa3bff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>CA3 — Réel normal</span>
+      <div className="mb-7">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-bg)] border border-[var(--accent-border)] mb-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#aa3bff]" />
+          <span className="text-[11px] font-semibold text-[#aa3bff] uppercase tracking-[0.08em]">CA3 — Réel normal</span>
         </div>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 6px', letterSpacing: '-0.4px' }}>
+        <h1 className="text-[26px] font-bold text-[var(--text-h)] m-0 mb-1.5 tracking-[-0.4px]">
           Déclaration de TVA
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>
+        <p className="text-[14px] text-[var(--text)] m-0">
           Calculez et enregistrez vos déclarations CA3 à partir de vos factures PNICompta.
         </p>
       </div>
 
       {/* Period selector */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '20px 22px', background: 'var(--card-bg)', marginBottom: 20 }}>
-        <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 600, color: 'var(--text-h)' }}>Période</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div className="border border-[var(--border)] rounded-xl px-[22px] py-5 bg-[var(--card-bg)] mb-5">
+        <p className="m-0 mb-3 text-[13px] font-semibold text-[var(--text-h)]">Période</p>
+        <div className="flex gap-2 mb-3.5 flex-wrap">
           {['Mois précédent', 'Il y a 2 mois', 'Il y a 3 mois'].map((label, i) => (
-            <button key={label} onClick={() => setPreset(i + 1)} style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+            <button
+              key={label}
+              onClick={() => setPreset(i + 1)}
+              className="px-3 py-1.5 rounded-md border border-[var(--border)] bg-transparent text-[var(--text)] text-[12px] cursor-pointer font-medium hover:bg-[var(--code-bg)] transition-colors"
+            >
               {label}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>Du</span>
-            <input type="date" value={dateDebut} onChange={e => { setDateDebut(e.target.value); setCompute(null) }}
-              style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)', fontSize: 14 }} />
+        <div className="flex gap-3 items-end flex-wrap">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] text-[var(--text)] font-medium">Du</span>
+            <input
+              type="date"
+              value={dateDebut}
+              onChange={e => { setDateDebut(e.target.value); setCompute(null) }}
+              className="px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-h)] text-[14px] outline-none"
+            />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>Au</span>
-            <input type="date" value={dateFin} onChange={e => { setDateFin(e.target.value); setCompute(null) }}
-              style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)', fontSize: 14 }} />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] text-[var(--text)] font-medium">Au</span>
+            <input
+              type="date"
+              value={dateFin}
+              onChange={e => { setDateFin(e.target.value); setCompute(null) }}
+              className="px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text-h)] text-[14px] outline-none"
+            />
           </label>
-          <button onClick={handleCompute} disabled={loading || !selectedTenant}
-            style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: loading ? 'var(--border)' : 'linear-gradient(135deg, #aa3bff, #7c3aed)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: loading ? 'default' : 'pointer' }}>
+          <Button
+            onClick={handleCompute}
+            disabled={loading || !selectedTenant}
+            className="bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 hover:opacity-90 disabled:opacity-50"
+          >
             {loading ? 'Calcul…' : 'Calculer'}
-          </button>
+          </Button>
         </div>
-        {error && <p style={{ margin: '12px 0 0', color: '#ef4444', fontSize: 13 }}>{error}</p>}
+        {error && <p className="mt-3 m-0 text-[#ef4444] text-[13px]">{error}</p>}
       </div>
 
       {/* Results */}
       {compute && (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '22px', background: 'var(--card-bg)', marginBottom: 20 }}>
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text)' }}>
+        <div className="border border-[var(--border)] rounded-xl p-[22px] bg-[var(--card-bg)] mb-5">
+          <p className="m-0 mb-4 text-[13px] text-[var(--text)]">
             {fmtDate(compute.date_debut)} — {fmtDate(compute.date_fin)}
           </p>
 
           {/* 3 stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}>
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {[
               { label: 'TVA collectée', value: compute.tva_collectee, color: '#2563eb' },
               { label: 'TVA déductible', value: compute.tva_deductible, color: '#10b981' },
               { label: compute.est_credit ? 'Crédit TVA' : 'TVA à payer', value: Math.abs(nette).toFixed(2), color: netteColor },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', background: 'var(--bg)' }}>
-                <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text)' }}>{label}</p>
-                <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color, fontFamily: 'monospace' }}>{fmt(value)}</p>
+              <div key={label} className="border border-[var(--border)] rounded-[10px] px-4 py-3.5 bg-[var(--bg)]">
+                <p className="m-0 mb-1.5 text-[12px] text-[var(--text)]">{label}</p>
+                <p className="m-0 text-[24px] font-bold font-mono tabular-nums" style={{ color }}>{fmt(value)}</p>
               </div>
             ))}
           </div>
 
-          {/* Detail by rate */}
           <TVALineTable lines={compute.lignes_collectee} label="TVA collectée (ventes) par taux" />
           <TVALineTable lines={compute.lignes_deductible} label="TVA déductible (achats) par taux" />
 
-          {/* Action buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
-            <button onClick={() => setCompute(null)} style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-              Annuler
-            </button>
-            <button
+          <div className="flex justify-end gap-2.5 mt-2">
+            <Button variant="outline" onClick={() => setCompute(null)}>Annuler</Button>
+            <Button
+              variant="outline"
+              disabled={exporting}
               onClick={async () => {
                 if (!selectedTenant) return
                 setExporting(true)
-                try {
-                  await exportCA3(selectedTenant.id, dateDebut, dateFin)
-                } catch {
-                  setError('Erreur lors de l\'export PDF')
-                } finally {
-                  setExporting(false)
-                }
+                try { await exportCA3(selectedTenant.id, dateDebut, dateFin) }
+                catch { setError("Erreur lors de l'export PDF") }
+                finally { setExporting(false) }
               }}
-              disabled={exporting}
-              style={{ padding: '9px 18px', borderRadius: 9, border: '1px solid #00348A', background: 'transparent', color: '#00348A', fontSize: 14, fontWeight: 600, cursor: exporting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              className="border-[#00348A] text-[#00348A] hover:bg-[#00348A]/5"
+            >
               {exporting ? 'Génération…' : '↓ Télécharger CA3 PDF'}
-            </button>
-            <button onClick={handleSave} disabled={saving}
-              style={{ padding: '9px 20px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg, #aa3bff, #7c3aed)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer' }}>
+            </Button>
+            <Button
+              disabled={saving}
+              onClick={handleSave}
+              className="bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 hover:opacity-90 disabled:opacity-50"
+            >
               {saving ? 'Enregistrement…' : 'Valider la déclaration'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* History */}
       <div>
-        <h2 style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px', letterSpacing: '-0.2px' }}>
+        <h2 className="text-[17px] font-semibold text-[var(--text-h)] m-0 mb-3.5 tracking-[-0.2px]">
           Historique des déclarations
         </h2>
-        {historyLoading && <p style={{ color: 'var(--text)', fontSize: 14 }}>Chargement…</p>}
+        {historyLoading && <p className="text-[var(--text)] text-[14px]">Chargement…</p>}
         {!historyLoading && history.length === 0 && (
-          <p style={{ color: 'var(--text)', fontSize: 14, fontStyle: 'italic' }}>Aucune déclaration enregistrée.</p>
+          <p className="text-[var(--text)] text-[14px] italic">Aucune déclaration enregistrée.</p>
         )}
         {history.length > 0 && (
-          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="border border-[var(--border)] rounded-xl overflow-hidden">
+            <table className="w-full border-collapse">
               <thead>
-                <tr style={{ background: 'rgba(107,99,117,0.04)' }}>
+                <tr className="bg-[rgba(107,99,117,0.04)]">
                   {['Période', 'TVA collectée', 'TVA déductible', 'Net', 'Statut', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                    <th key={h} className="px-3.5 py-2.5 text-left text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.07em] border-b border-[var(--border)]">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -277,38 +290,43 @@ export default function TVA() {
                   const net = Number(d.tva_nette)
                   const isCredit = net < 0
                   return (
-                    <tr key={d.id} style={{ borderBottom: i < history.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-h)' }}>
+                    <tr key={d.id} className={i < history.length - 1 ? 'border-b border-[var(--border)]' : ''}>
+                      <td className="px-3.5 py-3 text-[13px] text-[var(--text-h)]">
                         {new Date(d.date_debut).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
                         {' – '}
                         {new Date(d.date_fin).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
                       </td>
-                      <td style={{ padding: '12px 14px', fontSize: 13, fontFamily: 'monospace', color: '#2563eb' }}>{fmt(d.tva_collectee)}</td>
-                      <td style={{ padding: '12px 14px', fontSize: 13, fontFamily: 'monospace', color: '#10b981' }}>{fmt(d.tva_deductible)}</td>
-                      <td style={{ padding: '12px 14px', fontSize: 13, fontFamily: 'monospace', fontWeight: 600, color: isCredit ? '#10b981' : '#ef4444' }}>
+                      <td className="px-3.5 py-3 text-[13px] font-mono tabular-nums text-blue-600">{fmt(d.tva_collectee)}</td>
+                      <td className="px-3.5 py-3 text-[13px] font-mono tabular-nums text-emerald-600">{fmt(d.tva_deductible)}</td>
+                      <td className={cn('px-3.5 py-3 text-[13px] font-mono tabular-nums font-semibold', isCredit ? 'text-emerald-600' : 'text-red-500')}>
                         {isCredit ? `Crédit ${fmt(Math.abs(net))}` : fmt(net)}
                       </td>
-                      <td style={{ padding: '12px 14px' }}><Badge statut={d.statut} /></td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <td className="px-3.5 py-3"><StatutBadge statut={d.statut} /></td>
+                      <td className="px-3.5 py-3">
+                        <div className="flex gap-1.5 flex-wrap">
                           <button
                             onClick={async () => {
                               if (!selectedTenant) return
                               try { await exportCA3(selectedTenant.id, d.date_debut, d.date_fin) }
                               catch { alert('Erreur export PDF') }
                             }}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #00348A', background: 'transparent', color: '#00348A', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                            className="px-2.5 py-1 rounded-md border border-[#00348A] bg-transparent text-[#00348A] text-[12px] font-medium cursor-pointer hover:bg-[#00348A]/5"
+                          >
                             ↓ CA3
                           </button>
                           {d.statut === 'brouillon' && (
-                            <button onClick={() => handleStatut(d.id, 'deposee')}
-                              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #2563eb', background: 'transparent', color: '#2563eb', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                            <button
+                              onClick={() => handleStatut(d.id, 'deposee')}
+                              className="px-2.5 py-1 rounded-md border border-blue-500 bg-transparent text-blue-600 text-[12px] font-medium cursor-pointer hover:bg-blue-50"
+                            >
                               Marquer déposée
                             </button>
                           )}
                           {d.statut === 'deposee' && (
-                            <button onClick={() => handleStatut(d.id, 'payee')}
-                              style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#10b981', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+                            <button
+                              onClick={() => handleStatut(d.id, 'payee')}
+                              className="px-2.5 py-1 rounded-md border border-emerald-500 bg-transparent text-emerald-600 text-[12px] font-medium cursor-pointer hover:bg-emerald-50"
+                            >
                               Marquer payée
                             </button>
                           )}

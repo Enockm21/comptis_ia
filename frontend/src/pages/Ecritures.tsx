@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTenant } from '../lib/TenantContext'
 import { listEcritures, type Ecriture } from '../lib/ecritures'
+import { cn } from '@/lib/utils'
 
 const fmt = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
 
@@ -12,22 +13,14 @@ const STATUTS = [
 ]
 
 function StatutBadge({ statut }: { statut: Ecriture['statut'] }) {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    a_categoriser: { label: 'À catégoriser', bg: '#fef3c7', color: '#92400e' },
-    categorisee: { label: 'Catégorisée', bg: '#dbeafe', color: '#1e40af' },
-    validee: { label: 'Validée', bg: '#d1fae5', color: '#065f46' },
+  const map: Record<string, { label: string; classes: string }> = {
+    a_categoriser: { label: 'À catégoriser', classes: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+    categorisee:   { label: 'Catégorisée',   classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+    validee:       { label: 'Validée',        classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' },
   }
-  const s = map[statut] ?? { label: statut, bg: 'var(--code-bg)', color: 'var(--text)' }
+  const s = map[statut] ?? { label: statut, classes: 'bg-[var(--code-bg)] text-[var(--text)]' }
   return (
-    <span style={{
-      padding: '3px 9px',
-      borderRadius: 20,
-      fontSize: 11,
-      fontWeight: 600,
-      background: s.bg,
-      color: s.color,
-      whiteSpace: 'nowrap',
-    }}>
+    <span className={cn('px-2.5 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap', s.classes)}>
       {s.label}
     </span>
   )
@@ -51,32 +44,25 @@ export default function Ecritures() {
   }, [selected, statut])
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1100 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+    <div className="px-9 py-8 max-w-[1100px]">
+      <div className="flex items-center justify-between mb-7 flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 4px', letterSpacing: '-0.4px' }}>Écritures</h1>
-          <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>
-            {selected?.name ?? '—'}
-          </p>
+          <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1 tracking-[-0.4px]">Écritures</h1>
+          <p className="text-[14px] text-[var(--text)] m-0">{selected?.name ?? '—'}</p>
         </div>
+
         {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 4, background: 'var(--code-bg)', padding: 4, borderRadius: 10, border: '1px solid var(--border)' }}>
+        <div className="flex gap-1 bg-[var(--code-bg)] p-1 rounded-[10px] border border-[var(--border)]">
           {STATUTS.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => setStatut(value)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 7,
-                border: 'none',
-                background: statut === value ? 'var(--bg)' : 'transparent',
-                color: statut === value ? 'var(--text-h)' : 'var(--text)',
-                fontSize: 13,
-                fontWeight: statut === value ? 600 : 400,
-                cursor: 'pointer',
-                boxShadow: statut === value ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'background 0.1s',
-              }}
+              className={cn(
+                'px-3.5 py-1.5 rounded-[7px] border-none text-[13px] cursor-pointer transition-[background] duration-100',
+                statut === value
+                  ? 'bg-[var(--bg)] text-[var(--text-h)] font-semibold shadow-sm'
+                  : 'bg-transparent text-[var(--text)] font-normal'
+              )}
             >
               {label}
             </button>
@@ -84,29 +70,29 @@ export default function Ecritures() {
         </div>
       </div>
 
-      {loading && <p style={{ color: 'var(--text)' }}>Chargement…</p>}
-      {!loading && !selected && <p style={{ color: 'var(--text)' }}>Aucun client sélectionné.</p>}
+      {loading && <p className="text-[var(--text)]">Chargement…</p>}
+      {!loading && !selected && <p className="text-[var(--text)]">Aucun client sélectionné.</p>}
       {error && (
-        <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13 }}>
+        <div className="bg-red-50 text-red-800 rounded-lg px-4 py-2.5 mb-4 text-[13px] dark:bg-red-900/20 dark:text-red-400">
           {error}
         </div>
       )}
 
       {!loading && selected && (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'auto' }}>
+        <div className="border border-[var(--border)] rounded-xl overflow-auto">
           {fetching ? (
-            <div style={{ padding: 32, textAlign: 'center', color: 'var(--text)' }}>Chargement…</div>
+            <div className="p-8 text-center text-[var(--text)]">Chargement…</div>
           ) : ecritures.length === 0 ? (
-            <div style={{ padding: 48, textAlign: 'center', color: 'var(--text)' }}>
-              <p style={{ margin: 0, fontSize: 15 }}>Aucune écriture</p>
-              <p style={{ margin: '6px 0 0', fontSize: 13 }}>Lancez un rapprochement pour en créer.</p>
+            <div className="py-12 px-8 text-center text-[var(--text)]">
+              <p className="m-0 text-[15px]">Aucune écriture</p>
+              <p className="mt-1.5 m-0 text-[13px]">Lancez un rapprochement pour en créer.</p>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table className="w-full border-collapse text-[13px]">
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--code-bg)' }}>
+                <tr className="border-b border-[var(--border)] bg-[var(--code-bg)]">
                   {['Date', 'Transaction', 'Facture', 'Montant', 'Compte', 'Statut'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <th key={h} className="px-4 py-3 text-left font-semibold text-[var(--text)] text-[11px] uppercase tracking-[0.05em]">
                       {h}
                     </th>
                   ))}
@@ -116,27 +102,24 @@ export default function Ecritures() {
                 {ecritures.map((e, i) => (
                   <tr
                     key={e.id}
-                    style={{
-                      borderBottom: i < ecritures.length - 1 ? '1px solid var(--border)' : 'none',
-                      background: 'var(--card-bg)',
-                    }}
+                    className={cn('bg-[var(--card-bg)]', i < ecritures.length - 1 && 'border-b border-[var(--border)]')}
                   >
-                    <td style={{ padding: '12px 16px', color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                    <td className="px-4 py-3 text-[var(--text)] whitespace-nowrap">
                       {new Date(e.date).toLocaleDateString('fr-FR')}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-h)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td className="px-4 py-3 text-[var(--text-h)] max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap">
                       {e.transaction_id}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <td className="px-4 py-3 text-[var(--text)] max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap">
                       {e.facture_id ?? '—'}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-h)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <td className="px-4 py-3 text-[var(--text-h)] font-semibold whitespace-nowrap tabular-nums">
                       {fmt.format(parseFloat(e.montant))}
                     </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text)', fontFamily: 'monospace', fontSize: 11 }}>
-                      {e.compte_id ?? <span style={{ opacity: 0.4 }}>—</span>}
+                    <td className="px-4 py-3 text-[var(--text)] font-mono text-[11px]">
+                      {e.compte_id ?? <span className="opacity-40">—</span>}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td className="px-4 py-3">
                       <StatutBadge statut={e.statut} />
                     </td>
                   </tr>
@@ -148,7 +131,7 @@ export default function Ecritures() {
       )}
 
       {!fetching && ecritures.length > 0 && (
-        <p style={{ fontSize: 12, color: 'var(--text)', marginTop: 10 }}>
+        <p className="text-[12px] text-[var(--text)] mt-2.5">
           {ecritures.length} écriture{ecritures.length > 1 ? 's' : ''}
         </p>
       )}

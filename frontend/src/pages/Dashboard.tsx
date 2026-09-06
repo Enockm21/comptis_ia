@@ -2,21 +2,18 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTenant } from '../lib/TenantContext'
 import { listEcritures, type Ecriture } from '../lib/ecritures'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
-    <div style={{
-      background: 'var(--card-bg)',
-      border: '1px solid var(--border)',
-      borderRadius: 12,
-      padding: '20px 24px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-    }}>
-      <p style={{ fontSize: 13, color: 'var(--text)', margin: 0 }}>{label}</p>
-      <p style={{ fontSize: 28, fontWeight: 700, color: color ?? 'var(--text-h)', margin: 0, letterSpacing: '-0.5px' }}>{value}</p>
-      {sub && <p style={{ fontSize: 12, color: 'var(--text)', margin: 0 }}>{sub}</p>}
+    <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl p-5 flex flex-col gap-1.5">
+      <p className="text-[13px] text-[var(--text)] m-0">{label}</p>
+      <p className={cn('text-[28px] font-bold m-0 tracking-[-0.5px]', color ? '' : 'text-[var(--text-h)]')}
+         style={color ? { color } : undefined}>
+        {value}
+      </p>
+      {sub && <p className="text-[12px] text-[var(--text)] m-0">{sub}</p>}
     </div>
   )
 }
@@ -39,17 +36,11 @@ export default function Dashboard() {
   }, [selected])
 
   if (loading || fetching) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text)' }}>Chargement…</div>
-    )
+    return <div className="p-10 text-[var(--text)]">Chargement…</div>
   }
 
   if (!selected) {
-    return (
-      <div style={{ padding: 40, color: 'var(--text)' }}>
-        Aucun client sélectionné.
-      </div>
-    )
+    return <div className="p-10 text-[var(--text)]">Aucun client sélectionné.</div>
   }
 
   const total = ecritures.length
@@ -63,19 +54,17 @@ export default function Dashboard() {
     .slice(0, 5)
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 1100 }}>
+    <div className="px-9 py-8 max-w-[1100px]">
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 4px', letterSpacing: '-0.4px' }}>
+      <div className="mb-8">
+        <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1 tracking-[-0.4px]">
           Tableau de bord
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>
-          {selected.name}
-        </p>
+        <p className="text-[14px] text-[var(--text)] m-0">{selected.name}</p>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 36 }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 mb-9">
         <StatCard label="Rapprochées" value={total} color="#10b981" sub="transactions confirmées" />
         <StatCard label="À catégoriser" value={aCategoriser} color={aCategoriser > 0 ? '#f59e0b' : undefined} />
         <StatCard label="Catégorisées" value={categorisees} />
@@ -84,61 +73,48 @@ export default function Dashboard() {
       </div>
 
       {/* Quick actions */}
-      <div style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px' }}>Actions rapides</h2>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {[
-            { label: 'Lancer un rapprochement', to: '/rapprochement', accent: true },
-            { label: 'Catégoriser les écritures', to: '/categorisation', accent: false },
-            { label: 'Voir toutes les écritures', to: '/ecritures', accent: false },
-          ].map(({ label, to, accent }) => (
-            <button
-              key={to}
-              onClick={() => navigate(to)}
-              style={{
-                padding: '9px 18px',
-                borderRadius: 8,
-                border: accent ? 'none' : '1px solid var(--border)',
-                background: accent ? 'linear-gradient(135deg, #aa3bff, #7c3aed)' : 'var(--card-bg)',
-                color: accent ? '#fff' : 'var(--text-h)',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                boxShadow: accent ? '0 2px 8px rgba(170,59,255,0.25)' : 'none',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+      <div className="mb-9">
+        <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-3.5">Actions rapides</h2>
+        <div className="flex gap-2.5 flex-wrap">
+          <Button
+            onClick={() => navigate('/rapprochement')}
+            className="bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 shadow-[0_2px_8px_rgba(170,59,255,0.25)] hover:opacity-90"
+          >
+            Lancer un rapprochement
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/categorisation')}>
+            Catégoriser les écritures
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/ecritures')}>
+            Voir toutes les écritures
+          </Button>
         </div>
       </div>
 
       {/* Recent écritures */}
       <div>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px' }}>Dernières écritures</h2>
+        <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-3.5">Dernières écritures</h2>
         {recentEcritures.length === 0 ? (
-          <p style={{ color: 'var(--text)', fontSize: 14 }}>Aucune écriture pour ce client.</p>
+          <p className="text-[var(--text)] text-[14px]">Aucune écriture pour ce client.</p>
         ) : (
-          <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          <div className="border border-[var(--border)] rounded-xl overflow-hidden">
             {recentEcritures.map((e, i) => (
               <div
                 key={e.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
-                  padding: '14px 20px',
-                  borderBottom: i < recentEcritures.length - 1 ? '1px solid var(--border)' : 'none',
-                  background: 'var(--card-bg)',
-                }}
+                className={cn(
+                  'flex items-center gap-4 px-5 py-3.5 bg-[var(--card-bg)]',
+                  i < recentEcritures.length - 1 && 'border-b border-[var(--border)]'
+                )}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'var(--text-h)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="m-0 text-[13px] font-medium text-[var(--text-h)] truncate">
                     {e.transaction_id}
                   </p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>{new Date(e.date).toLocaleDateString('fr-FR')}</p>
+                  <p className="m-0 text-[12px] text-[var(--text)]">
+                    {new Date(e.date).toLocaleDateString('fr-FR')}
+                  </p>
                 </div>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-h)' }}>
+                <span className="text-[14px] font-semibold text-[var(--text-h)]">
                   {fmt.format(parseFloat(e.montant))}
                 </span>
                 <StatutBadge statut={e.statut} />
@@ -152,22 +128,14 @@ export default function Dashboard() {
 }
 
 function StatutBadge({ statut }: { statut: Ecriture['statut'] }) {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    a_categoriser: { label: 'À catégoriser', bg: '#fef3c7', color: '#92400e' },
-    categorisee: { label: 'Catégorisée', bg: '#dbeafe', color: '#1e40af' },
-    validee: { label: 'Validée', bg: '#d1fae5', color: '#065f46' },
+  const map: Record<string, { label: string; classes: string }> = {
+    a_categoriser: { label: 'À catégoriser', classes: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+    categorisee:   { label: 'Catégorisée',   classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+    validee:       { label: 'Validée',        classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' },
   }
-  const s = map[statut] ?? { label: statut, bg: 'var(--code-bg)', color: 'var(--text)' }
+  const s = map[statut] ?? { label: statut, classes: 'bg-[var(--code-bg)] text-[var(--text)]' }
   return (
-    <span style={{
-      padding: '3px 9px',
-      borderRadius: 20,
-      fontSize: 11,
-      fontWeight: 600,
-      background: s.bg,
-      color: s.color,
-      flexShrink: 0,
-    }}>
+    <span className={cn('px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0', s.classes)}>
       {s.label}
     </span>
   )

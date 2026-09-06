@@ -3,6 +3,7 @@ import { useTenant } from '../lib/TenantContext'
 import { listEcritures, type Ecriture } from '../lib/ecritures'
 import { listPlanComptable, type Compte } from '../lib/plan-comptable'
 import { authHeaders } from '../lib/auth'
+import { Button } from '@/components/ui/button'
 
 const fmt = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
 
@@ -31,7 +32,7 @@ export default function Categorisation() {
   const [comptes, setComptes] = useState<Compte[]>([])
   const [fetching, setFetching] = useState(false)
   const [current, setCurrent] = useState(0)
-  const [selectedCompte, setSelectedCompte] = useState('')  // numero du compte
+  const [selectedCompte, setSelectedCompte] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -77,76 +78,56 @@ export default function Categorisation() {
     }
   }
 
-  if (loading || fetching) return <div style={{ padding: 40, color: 'var(--text)' }}>Chargement…</div>
-  if (!selected) return <div style={{ padding: 40, color: 'var(--text)' }}>Aucun client sélectionné.</div>
+  if (loading || fetching) return <div className="p-10 text-[var(--text)]">Chargement…</div>
+  if (!selected) return <div className="p-10 text-[var(--text)]">Aucun client sélectionné.</div>
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 760 }}>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 4px', letterSpacing: '-0.4px' }}>Catégorisation</h1>
-        <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>{selected.name}</p>
+    <div className="px-9 py-8 max-w-[760px]">
+      <div className="mb-7">
+        <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1 tracking-[-0.4px]">Catégorisation</h1>
+        <p className="text-[14px] text-[var(--text)] m-0">{selected.name}</p>
       </div>
 
       {error && (
-        <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13 }}>
+        <div className="bg-red-50 text-red-800 rounded-lg px-4 py-2.5 mb-4 text-[13px] dark:bg-red-900/20 dark:text-red-400">
           {error}
         </div>
       )}
 
       {done ? (
-        <div style={{
-          border: '1px solid var(--border)', borderRadius: 16, padding: 48,
-          textAlign: 'center', background: 'var(--card-bg)',
-        }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: '50%',
-            background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
-          }}>
+        <div className="border border-[var(--border)] rounded-2xl py-12 px-8 text-center bg-[var(--card-bg)]">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4 dark:bg-emerald-900/30">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M20 6L9 17l-5-5" stroke="#065f46" strokeWidth="2.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 6px' }}>
-            Tout est catégorisé !
-          </p>
-          <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>
-            Aucune écriture en attente de catégorisation.
-          </p>
+          <p className="text-[16px] font-semibold text-[var(--text-h)] m-0 mb-1.5">Tout est catégorisé !</p>
+          <p className="text-[14px] text-[var(--text)] m-0">Aucune écriture en attente de catégorisation.</p>
         </div>
       ) : ecriture ? (
         <>
           {/* Progress */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>
-                {current + 1} / {ecritures.length} écritures
-              </span>
-              <span style={{ fontSize: 12, color: 'var(--text)' }}>
-                {Math.round(((current) / ecritures.length) * 100)}%
-              </span>
+          <div className="mb-5">
+            <div className="flex justify-between mb-1.5">
+              <span className="text-[12px] text-[var(--text)]">{current + 1} / {ecritures.length} écritures</span>
+              <span className="text-[12px] text-[var(--text)]">{Math.round((current / ecritures.length) * 100)}%</span>
             </div>
-            <div style={{ height: 4, background: 'var(--border)', borderRadius: 2 }}>
-              <div style={{
-                height: '100%', borderRadius: 2,
-                background: 'linear-gradient(90deg, #aa3bff, #7c3aed)',
-                width: `${(current / ecritures.length) * 100}%`,
-                transition: 'width 0.3s',
-              }} />
+            <div className="h-1 bg-[var(--border)] rounded-full">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#aa3bff] to-[#7c3aed] transition-[width] duration-300"
+                style={{ width: `${(current / ecritures.length) * 100}%` }}
+              />
             </div>
           </div>
 
           {/* Ecriture card */}
-          <div style={{
-            border: '1px solid var(--border)', borderRadius: 16,
-            background: 'var(--card-bg)', overflow: 'hidden', marginBottom: 20,
-          }}>
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)', background: 'var(--code-bg)' }}>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 }}>
+          <div className="border border-[var(--border)] rounded-2xl bg-[var(--card-bg)] overflow-hidden mb-5">
+            <div className="px-6 py-4 border-b border-[var(--border)] bg-[var(--code-bg)]">
+              <p className="m-0 text-[12px] text-[var(--text)] uppercase tracking-[0.07em] font-semibold">
                 Écriture à catégoriser
               </p>
             </div>
-            <div style={{ padding: '20px 24px', display: 'grid', gap: 14 }}>
+            <div className="px-6 py-5 grid gap-3.5">
               <Row label="Transaction" value={ecriture.transaction_id} mono />
               <Row label="Facture" value={ecriture.facture_id ?? '—'} mono />
               <Row label="Montant" value={fmt.format(parseFloat(ecriture.montant))} bold />
@@ -155,27 +136,14 @@ export default function Categorisation() {
           </div>
 
           {/* Compte selector */}
-          <div style={{
-            border: '1px solid var(--border)', borderRadius: 12,
-            background: 'var(--card-bg)', padding: '20px 24px', marginBottom: 16,
-          }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-h)', display: 'block', marginBottom: 10 }}>
+          <div className="border border-[var(--border)] rounded-xl bg-[var(--card-bg)] px-6 py-5 mb-4">
+            <label className="text-[13px] font-semibold text-[var(--text-h)] block mb-2.5">
               Affecter au compte
             </label>
             <select
               value={selectedCompte}
               onChange={e => setSelectedCompte(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--code-bg)',
-                color: selectedCompte ? 'var(--text-h)' : 'var(--text)',
-                fontSize: 13,
-                outline: 'none',
-                cursor: 'pointer',
-              }}
+              className="w-full px-3.5 py-2.5 rounded-lg border border-[var(--border)] bg-[var(--code-bg)] text-[13px] outline-none cursor-pointer text-[var(--text-h)]"
             >
               <option value="">Sélectionner un compte…</option>
               {comptes.map(c => (
@@ -186,27 +154,13 @@ export default function Categorisation() {
             </select>
           </div>
 
-          <button
+          <Button
             onClick={handleSubmit}
             disabled={!selectedCompte || submitting}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: 10,
-              border: 'none',
-              background: selectedCompte && !submitting
-                ? 'linear-gradient(135deg, #aa3bff, #7c3aed)'
-                : 'var(--border)',
-              color: selectedCompte && !submitting ? '#fff' : 'var(--text)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: selectedCompte && !submitting ? 'pointer' : 'not-allowed',
-              boxShadow: selectedCompte ? '0 2px 8px rgba(170,59,255,0.25)' : 'none',
-              transition: 'background 0.2s',
-            }}
+            className="w-full py-3 text-[14px] font-semibold bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 shadow-[0_2px_8px_rgba(170,59,255,0.25)] hover:opacity-90 disabled:opacity-50 disabled:shadow-none"
           >
             {submitting ? 'Enregistrement…' : 'Valider la catégorisation →'}
-          </button>
+          </Button>
         </>
       ) : null}
     </div>
@@ -215,15 +169,9 @@ export default function Categorisation() {
 
 function Row({ label, value, mono, bold }: { label: string; value: string; mono?: boolean; bold?: boolean }) {
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-      <span style={{ fontSize: 12, color: 'var(--text)', width: 100, flexShrink: 0, textAlign: 'right' }}>{label}</span>
-      <span style={{
-        fontSize: mono ? 12 : 14,
-        color: 'var(--text-h)',
-        fontFamily: mono ? 'monospace' : 'inherit',
-        fontWeight: bold ? 700 : 400,
-        wordBreak: 'break-all',
-      }}>
+    <div className="flex gap-3 items-baseline">
+      <span className="text-[12px] text-[var(--text)] w-[100px] shrink-0 text-right">{label}</span>
+      <span className={`text-[var(--text-h)] break-all ${mono ? 'text-[12px] font-mono' : 'text-[14px]'} ${bold ? 'font-bold' : ''}`}>
         {value}
       </span>
     </div>

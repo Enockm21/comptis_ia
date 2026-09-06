@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { authHeaders } from '../lib/auth'
+import { cn } from '@/lib/utils'
 
 interface Integration {
   id: string
@@ -15,10 +16,10 @@ async function listIntegrations(): Promise<Integration[]> {
   return res.json() as Promise<Integration[]>
 }
 
-const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  active: { bg: '#d1fae5', color: '#065f46', label: 'Actif' },
-  inactive: { bg: 'var(--code-bg)', color: 'var(--text)', label: 'Inactif' },
-  error: { bg: '#fee2e2', color: '#991b1b', label: 'Erreur' },
+const STATUS_MAP: Record<string, { classes: string; label: string }> = {
+  active:   { classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', label: 'Actif' },
+  inactive: { classes: 'bg-[var(--code-bg)] text-[var(--text)]', label: 'Inactif' },
+  error:    { classes: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', label: 'Erreur' },
 }
 
 export default function Integrations() {
@@ -33,50 +34,28 @@ export default function Integrations() {
   }, [])
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: 900 }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 4px', letterSpacing: '-0.4px' }}>Intégrations</h1>
-        <p style={{ fontSize: 14, color: 'var(--text)', margin: 0 }}>
-          Connexions aux sources de données comptables
-        </p>
+    <div className="px-9 py-8 max-w-[900px]">
+      <div className="mb-8">
+        <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1 tracking-[-0.4px]">Intégrations</h1>
+        <p className="text-[14px] text-[var(--text)] m-0">Connexions aux sources de données comptables</p>
       </div>
 
       {/* PNICompta card */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px' }}>Sources connectées</h2>
-        <div style={{
-          border: '1px solid var(--border)',
-          borderRadius: 14,
-          overflow: 'hidden',
-          background: 'var(--card-bg)',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 16, padding: '18px 20px',
-          }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 10,
-              background: 'linear-gradient(135deg, #3b82f622, #1d4ed822)',
-              border: '1px solid #3b82f644',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
+      <div className="mb-6">
+        <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-3.5">Sources connectées</h2>
+        <div className="border border-[var(--border)] rounded-[14px] overflow-hidden bg-[var(--card-bg)]">
+          <div className="flex items-center gap-4 px-5 py-4.5">
+            <div className="w-11 h-11 rounded-[10px] bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0 dark:bg-blue-900/20 dark:border-blue-800">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="3" width="20" height="14" rx="2" stroke="#3b82f6" strokeWidth="2"/>
                 <path d="M8 21h8M12 17v4" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-h)', fontSize: 14 }}>PNICompta</p>
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>Logiciel de comptabilité — factures, transactions</p>
+            <div className="flex-1">
+              <p className="m-0 font-semibold text-[var(--text-h)] text-[14px]">PNICompta</p>
+              <p className="m-0 text-[12px] text-[var(--text)]">Logiciel de comptabilité — factures, transactions</p>
             </div>
-            <span style={{
-              padding: '4px 10px',
-              borderRadius: 20,
-              fontSize: 11,
-              fontWeight: 600,
-              background: '#d1fae5',
-              color: '#065f46',
-            }}>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
               Connecté
             </span>
           </div>
@@ -85,34 +64,29 @@ export default function Integrations() {
 
       {/* Dynamic integrations */}
       {!loading && integrations.length > 0 && (
-        <div>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px' }}>Autres intégrations</h2>
-          <div style={{ border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+        <div className="mb-6">
+          <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-3.5">Autres intégrations</h2>
+          <div className="border border-[var(--border)] rounded-[14px] overflow-hidden">
             {integrations.map((intg, i) => {
-              const s = STATUS_COLORS[intg.status] ?? STATUS_COLORS.inactive
+              const s = STATUS_MAP[intg.status] ?? STATUS_MAP.inactive
               return (
                 <div
                   key={intg.id}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
-                    borderBottom: i < integrations.length - 1 ? '1px solid var(--border)' : 'none',
-                    background: 'var(--card-bg)',
-                  }}
+                  className={cn(
+                    'flex items-center gap-4 px-5 py-4 bg-[var(--card-bg)]',
+                    i < integrations.length - 1 && 'border-b border-[var(--border)]'
+                  )}
                 >
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-h)', fontSize: 14 }}>{intg.name}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: 'var(--text)' }}>{intg.type}</p>
+                  <div className="flex-1">
+                    <p className="m-0 font-semibold text-[var(--text-h)] text-[14px]">{intg.name}</p>
+                    <p className="m-0 text-[12px] text-[var(--text)]">{intg.type}</p>
                   </div>
                   {intg.last_sync && (
-                    <span style={{ fontSize: 12, color: 'var(--text)' }}>
+                    <span className="text-[12px] text-[var(--text)]">
                       Sync : {new Date(intg.last_sync).toLocaleDateString('fr-FR')}
                     </span>
                   )}
-                  <span style={{
-                    padding: '4px 10px', borderRadius: 20,
-                    fontSize: 11, fontWeight: 600,
-                    background: s.bg, color: s.color,
-                  }}>
+                  <span className={cn('px-2.5 py-1 rounded-full text-[11px] font-semibold', s.classes)}>
                     {s.label}
                   </span>
                 </div>
@@ -123,21 +97,16 @@ export default function Integrations() {
       )}
 
       {/* Coming soon */}
-      <div style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 14px' }}>Prochainement</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+      <div className="mt-8">
+        <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-3.5">Prochainement</h2>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
           {['Sage 50', 'QuickBooks', 'Pennylane', 'FEC import', 'API REST publique'].map(name => (
             <div
               key={name}
-              style={{
-                border: '1px dashed var(--border)',
-                borderRadius: 12, padding: '16px 20px',
-                background: 'var(--card-bg)',
-                opacity: 0.6,
-              }}
+              className="border border-dashed border-[var(--border)] rounded-xl px-5 py-4 bg-[var(--card-bg)] opacity-60"
             >
-              <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-h)', fontSize: 13 }}>{name}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text)' }}>Bientôt disponible</p>
+              <p className="m-0 font-semibold text-[var(--text-h)] text-[13px]">{name}</p>
+              <p className="mt-1 m-0 text-[11px] text-[var(--text)]">Bientôt disponible</p>
             </div>
           ))}
         </div>

@@ -1,30 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTenant } from '../lib/TenantContext'
 import { updateTenantInfo } from '../lib/tenants'
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '9px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--border)',
-  background: 'var(--bg)',
-  color: 'var(--text-h)',
-  fontSize: 14,
-  outline: 'none',
-  boxSizing: 'border-box',
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 600,
-  color: 'var(--text)',
-  marginBottom: 5,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-}
-
-const fieldStyle: React.CSSProperties = { marginBottom: 18 }
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 export default function Parametres() {
   const { selected: tenant, tenants, setSelected } = useTenant()
@@ -52,8 +30,8 @@ export default function Parametres() {
 
   if (!tenant) {
     return (
-      <div style={{ padding: 32 }}>
-        <p style={{ color: 'var(--text)', fontSize: 14 }}>Sélectionnez un dossier pour accéder aux paramètres.</p>
+      <div className="p-8 text-[var(--text)] text-[14px]">
+        Sélectionnez un dossier pour accéder aux paramètres.
       </div>
     )
   }
@@ -69,7 +47,6 @@ export default function Parametres() {
         adresse: form.adresse || null,
         code_postal_ville: form.code_postal_ville || null,
       })
-      // Refresh tenant in context
       const refreshed = tenants.map(t => t.id === updated.id ? updated : t)
       const found = refreshed.find(t => t.id === updated.id)
       if (found) setSelected(found)
@@ -83,114 +60,108 @@ export default function Parametres() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 680 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 6px', letterSpacing: '-0.3px' }}>
-        Paramètres
-      </h1>
-      <p style={{ fontSize: 14, color: 'var(--text)', margin: '0 0 28px' }}>
+    <div className="px-8 py-7 max-w-[680px]">
+      <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1.5 tracking-[-0.3px]">Paramètres</h1>
+      <p className="text-[14px] text-[var(--text)] m-0 mb-7">
         Informations de la société — utilisées pour la génération des formulaires CA3.
       </p>
 
       {/* Tenant name (read-only) */}
-      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl px-5 py-4 mb-6">
+        <div className="text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.05em] mb-1">
           Dossier actif
         </div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-h)' }}>{tenant.name}</div>
-        <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 2 }}>ID : {tenant.id}</div>
+        <div className="text-[16px] font-bold text-[var(--text-h)]">{tenant.name}</div>
+        <div className="text-[12px] text-[var(--text)] mt-0.5">ID : {tenant.id}</div>
       </div>
 
       {/* Company info form */}
-      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px' }}>
-        <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-h)', margin: '0 0 20px', letterSpacing: '-0.2px' }}>
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl px-6 py-5">
+        <h2 className="text-[15px] font-semibold text-[var(--text-h)] m-0 mb-5 tracking-[-0.2px]">
           Informations société
         </h2>
 
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Numéro SIRET</label>
-          <input
-            style={inputStyle}
-            value={form.siret}
-            onChange={e => setForm(f => ({ ...f, siret: e.target.value }))}
-            placeholder="480 013 069 00020"
-            maxLength={20}
-          />
+        <div className="grid gap-4">
+          <div>
+            <label className="block text-[12px] font-semibold text-[var(--text)] mb-1.5 uppercase tracking-[0.05em]">
+              Numéro SIRET
+            </label>
+            <Input
+              value={form.siret}
+              onChange={e => setForm(f => ({ ...f, siret: e.target.value }))}
+              placeholder="480 013 069 00020"
+              maxLength={20}
+              className="bg-[var(--bg)] border-[var(--border)] text-[var(--text-h)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-[var(--text)] mb-1.5 uppercase tracking-[0.05em]">
+              N° TVA intracommunautaire
+            </label>
+            <Input
+              value={form.numero_tva}
+              onChange={e => setForm(f => ({ ...f, numero_tva: e.target.value }))}
+              placeholder="FR 14 480 013 069"
+              maxLength={20}
+              className="bg-[var(--bg)] border-[var(--border)] text-[var(--text-h)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-[var(--text)] mb-1.5 uppercase tracking-[0.05em]">
+              Adresse
+            </label>
+            <Input
+              value={form.adresse}
+              onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))}
+              placeholder="102 RUE DU LAC, IMMEUBLE LES ERABLES"
+              maxLength={255}
+              className="bg-[var(--bg)] border-[var(--border)] text-[var(--text-h)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-semibold text-[var(--text)] mb-1.5 uppercase tracking-[0.05em]">
+              Code postal et ville
+            </label>
+            <Input
+              value={form.code_postal_ville}
+              onChange={e => setForm(f => ({ ...f, code_postal_ville: e.target.value }))}
+              placeholder="31670 LABEGE"
+              maxLength={100}
+              className="bg-[var(--bg)] border-[var(--border)] text-[var(--text-h)]"
+            />
+          </div>
         </div>
 
-        <div style={fieldStyle}>
-          <label style={labelStyle}>N° TVA intracommunautaire</label>
-          <input
-            style={inputStyle}
-            value={form.numero_tva}
-            onChange={e => setForm(f => ({ ...f, numero_tva: e.target.value }))}
-            placeholder="FR 14 480 013 069"
-            maxLength={20}
-          />
-        </div>
+        {error && <p className="text-red-500 text-[13px] mt-4 mb-0">{error}</p>}
 
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Adresse</label>
-          <input
-            style={inputStyle}
-            value={form.adresse}
-            onChange={e => setForm(f => ({ ...f, adresse: e.target.value }))}
-            placeholder="102 RUE DU LAC, IMMEUBLE LES ERABLES"
-            maxLength={255}
-          />
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Code postal et ville</label>
-          <input
-            style={inputStyle}
-            value={form.code_postal_ville}
-            onChange={e => setForm(f => ({ ...f, code_postal_ville: e.target.value }))}
-            placeholder="31670 LABEGE"
-            maxLength={100}
-          />
-        </div>
-
-        {error && (
-          <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>{error}</p>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
-          <button
+        <div className="flex items-center gap-3 mt-6">
+          <Button
             onClick={handleSave}
             disabled={saving}
-            style={{
-              padding: '9px 20px',
-              borderRadius: 9,
-              border: 'none',
-              background: 'linear-gradient(135deg, #aa3bff, #7c3aed)',
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: saving ? 'default' : 'pointer',
-              opacity: saving ? 0.7 : 1,
-            }}
+            className="bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 hover:opacity-90 disabled:opacity-60"
           >
             {saving ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
+          </Button>
           {saved && (
-            <span style={{ fontSize: 13, color: '#10b981', fontWeight: 500 }}>
-              ✓ Sauvegardé
-            </span>
+            <span className="text-[13px] text-emerald-600 font-medium">✓ Sauvegardé</span>
           )}
         </div>
       </div>
 
       {/* Preview for CA3 */}
       {(form.siret || form.numero_tva) && (
-        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginTop: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
-            Apercu CA3
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl px-5 py-4 mt-4">
+          <div className="text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.05em] mb-2.5">
+            Aperçu CA3
           </div>
-          <div style={{ fontFamily: 'monospace', fontSize: 13, color: 'var(--text-h)', lineHeight: 1.8 }}>
-            <div style={{ fontWeight: 700 }}>{tenant.name}</div>
+          <div className="font-mono text-[13px] text-[var(--text-h)] leading-relaxed">
+            <div className="font-bold">{tenant.name}</div>
             {form.adresse && <div>{form.adresse}</div>}
             {form.code_postal_ville && <div>{form.code_postal_ville}</div>}
-            {form.siret && <div style={{ marginTop: 6 }}>SIRET : {form.siret}</div>}
+            {form.siret && <div className="mt-1.5">SIRET : {form.siret}</div>}
             {form.numero_tva && <div>TVA : {form.numero_tva}</div>}
           </div>
         </div>
