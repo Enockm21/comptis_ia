@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTenant } from '../lib/TenantContext'
 import { fetchWithAuth } from '../lib/http'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,36 +30,6 @@ interface CA3Data {
   tva_due: string
   credit_tva: string
 }
-
-// ── Styles ─────────────────────────────────────────────────────────────────
-
-const fieldRow: React.CSSProperties = { display: 'flex', gap: 8, marginBottom: 8 }
-
-const inputSm: React.CSSProperties = {
-  flex: 1, padding: '5px 8px', borderRadius: 6,
-  border: '1px solid var(--border)', background: 'var(--bg)',
-  color: 'var(--text-h)', fontSize: 13, outline: 'none',
-}
-
-const labelSm: React.CSSProperties = {
-  fontSize: 11, fontWeight: 600, color: 'var(--text)',
-  textTransform: 'uppercase', letterSpacing: '0.04em',
-  width: 130, flexShrink: 0, display: 'flex', alignItems: 'center',
-}
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 11, fontWeight: 700, color: '#7c3aed',
-  textTransform: 'uppercase', letterSpacing: '0.06em',
-  margin: '14px 0 8px', borderBottom: '1px solid var(--border)', paddingBottom: 4,
-}
-
-const btn = (primary = false): React.CSSProperties => ({
-  padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
-  fontSize: 13, fontWeight: 600,
-  background: primary ? 'linear-gradient(135deg,#aa3bff,#7c3aed)' : 'var(--card-bg)',
-  color: primary ? '#fff' : 'var(--text-h)',
-  border: primary ? 'none' : '1px solid var(--border)',
-})
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -97,9 +69,7 @@ export default function CA3Editor() {
   const [msg, setMsg] = useState<string | null>(null)
 
   if (!tenant) return (
-    <div style={{ padding: 32 }}>
-      <p style={{ color: 'var(--text)', fontSize: 14 }}>Sélectionnez un dossier.</p>
-    </div>
+    <div className="p-8 text-[var(--text)] text-[14px]">Sélectionnez un dossier.</div>
   )
 
   const set = (field: keyof CA3Data, val: string) =>
@@ -116,7 +86,6 @@ export default function CA3Editor() {
       const res = await fetchWithAuth(`/tva/ca3-compute?${params}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      // Stringify all numeric fields
       const d: CA3Data = {
         tenant_id: tenant.id,
         periode_debut: json.periode_debut,
@@ -142,10 +111,9 @@ export default function CA3Editor() {
         credit_tva: String(json.credit_tva || 0),
       }
       setForm(d)
-      // Auto-preview
       await generatePdf(d)
-    } catch (e: any) {
-      setMsg('Erreur : ' + e.message)
+    } catch (e: unknown) {
+      setMsg('Erreur : ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setLoading(false)
     }
@@ -166,8 +134,8 @@ export default function CA3Editor() {
       const url = URL.createObjectURL(blob)
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
       setPdfUrl(url)
-    } catch (e: any) {
-      setMsg('Erreur PDF : ' + e.message)
+    } catch (e: unknown) {
+      setMsg('Erreur PDF : ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setLoading(false)
     }
@@ -185,8 +153,8 @@ export default function CA3Editor() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
-    } catch (e: any) {
-      setMsg('Erreur sauvegarde : ' + e.message)
+    } catch (e: unknown) {
+      setMsg('Erreur sauvegarde : ' + (e instanceof Error ? e.message : String(e)))
     } finally {
       setSaving(false)
     }
@@ -202,11 +170,16 @@ export default function CA3Editor() {
     }
   }
 
+  // Shared input classes
+  const inputCls = 'flex-1 px-2 py-1.5 rounded-md border border-[var(--border)] bg-[var(--bg)] text-[var(--text-h)] text-[13px] outline-none min-w-0'
+  const inputROCls = cn(inputCls, 'bg-[var(--code-bg)] font-semibold')
+  const labelCls = 'text-[11px] font-semibold text-[var(--text)] uppercase tracking-[0.04em] w-[130px] shrink-0 flex items-center'
+
   const Field = ({ label, field, readOnly = false }: { label: string; field: keyof CA3Data; readOnly?: boolean }) => (
-    <div style={fieldRow}>
-      <span style={labelSm}>{label}</span>
+    <div className="flex gap-2 mb-2">
+      <span className={labelCls}>{label}</span>
       <input
-        style={{ ...inputSm, background: readOnly ? 'var(--code-bg)' : 'var(--bg)', fontWeight: readOnly ? 600 : 400 }}
+        className={readOnly ? inputROCls : inputCls}
         value={form?.[field] ?? ''}
         readOnly={readOnly}
         onChange={e => set(field, e.target.value)}
@@ -214,23 +187,29 @@ export default function CA3Editor() {
     </div>
   )
 
+  const SectionTitle = ({ children }: { children: string }) => (
+    <p className="text-[11px] font-bold text-[#7c3aed] uppercase tracking-[0.06em] mt-3.5 mb-2 border-b border-[var(--border)] pb-1">
+      {children}
+    </p>
+  )
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="flex h-screen overflow-hidden">
       {/* ── Left: PDF viewer ─────────────────────────────────────── */}
-      <div style={{ flex: 1, background: '#404040', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="flex-1 bg-[#404040] flex flex-col min-w-0">
         {pdfUrl ? (
           <iframe
             src={pdfUrl + '#toolbar=0'}
-            style={{ flex: 1, border: 'none', width: '100%' }}
+            className="flex-1 border-none w-full"
             title="CA3 PDF"
           />
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
+          <div className="flex-1 flex items-center justify-center flex-col gap-3">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity={0.4}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#fff" strokeWidth="1.5"/>
               <polyline points="14,2 14,8 20,8" stroke="#fff" strokeWidth="1.5"/>
             </svg>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
+            <p className="text-white/50 text-[13px] m-0">
               Chargez une déclaration pour voir le PDF
             </p>
           </div>
@@ -238,123 +217,143 @@ export default function CA3Editor() {
       </div>
 
       {/* ── Right: Form ──────────────────────────────────────────── */}
-      <div style={{
-        width: 380, flexShrink: 0, borderLeft: '1px solid var(--border)',
-        background: 'var(--bg)', display: 'flex', flexDirection: 'column',
-        overflowY: 'auto',
-      }}>
+      <div className="w-[380px] shrink-0 border-l border-[var(--border)] bg-[var(--bg)] flex flex-col overflow-y-auto">
+
         {/* Header */}
-        <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border)' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-h)', margin: '0 0 10px', letterSpacing: '-0.2px' }}>
+        <div className="px-[18px] pt-4 pb-3 border-b border-[var(--border)]">
+          <h2 className="text-[16px] font-bold text-[var(--text-h)] m-0 mb-2.5 tracking-[-0.2px]">
             Déclaration CA3
           </h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="flex gap-2 items-center">
             <input
               type="month"
               value={month}
               onChange={e => setMonth(e.target.value)}
-              style={{ ...inputSm, flex: 1 }}
+              className={cn(inputCls, 'flex-1')}
             />
-            <button onClick={handleLoad} disabled={loading} style={btn(true)}>
+            <Button
+              onClick={handleLoad}
+              disabled={loading}
+              size="sm"
+              className="bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 hover:opacity-90 shrink-0"
+            >
               {loading ? '…' : 'Charger'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Form fields */}
         {form && (
-          <div style={{ padding: '12px 18px', flex: 1 }}>
+          <div className="px-[18px] py-3 flex-1">
 
-            <p style={sectionTitle}>Identification</p>
+            <SectionTitle>Identification</SectionTitle>
             <Field label="Raison sociale" field="raison_sociale" />
             <Field label="Adresse" field="adresse" />
             <Field label="Code postal ville" field="code_postal_ville" />
             <Field label="SIRET" field="siret" />
             <Field label="N° TVA intra" field="numero_tva" />
 
-            <p style={sectionTitle}>Période</p>
-            <div style={fieldRow}>
-              <span style={labelSm}>Début</span>
-              <input type="date" style={inputSm} value={form.periode_debut}
+            <SectionTitle>Période</SectionTitle>
+            <div className="flex gap-2 mb-2">
+              <span className={labelCls}>Début</span>
+              <input type="date" className={inputCls} value={form.periode_debut}
                 onChange={e => set('periode_debut', e.target.value)} />
             </div>
-            <div style={fieldRow}>
-              <span style={labelSm}>Fin</span>
-              <input type="date" style={inputSm} value={form.periode_fin}
+            <div className="flex gap-2 mb-2">
+              <span className={labelCls}>Fin</span>
+              <input type="date" className={inputCls} value={form.periode_fin}
                 onChange={e => set('periode_fin', e.target.value)} />
             </div>
 
-            <p style={sectionTitle}>Opérations (page 2)</p>
+            <SectionTitle>Opérations (page 2)</SectionTitle>
             <Field label="A1 Ventes HT (0979)" field="a1_ventes" />
-            <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text)', fontStyle: 'italic' }}>
-              Ligne 08 – TVA 20% (0207)
-            </div>
-            <div style={fieldRow}>
-              <span style={labelSm}>Base HT</span>
-              <input style={inputSm} value={form.l08_base} onChange={e => set('l08_base', e.target.value)} />
-              <input style={{ ...inputSm, flex: 0.6, background: 'var(--code-bg)' }} value={form.l08_taxe}
+
+            <p className="mb-1.5 text-[11px] text-[var(--text)] italic">Ligne 08 – TVA 20% (0207)</p>
+            <div className="flex gap-2 mb-2">
+              <span className={labelCls}>Base HT</span>
+              <input className={inputCls} value={form.l08_base} onChange={e => set('l08_base', e.target.value)} />
+              <input className={cn(inputCls, 'flex-[0.6] bg-[var(--code-bg)]')} value={form.l08_taxe}
                 onChange={e => set('l08_taxe', e.target.value)} placeholder="Taxe" />
             </div>
-            <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text)', fontStyle: 'italic' }}>
-              Ligne 9B – TVA 10% (0151)
-            </div>
-            <div style={fieldRow}>
-              <span style={labelSm}>Base HT</span>
-              <input style={inputSm} value={form.l9b_base} onChange={e => set('l9b_base', e.target.value)} />
-              <input style={{ ...inputSm, flex: 0.6 }} value={form.l9b_taxe}
+
+            <p className="mb-1.5 text-[11px] text-[var(--text)] italic">Ligne 9B – TVA 10% (0151)</p>
+            <div className="flex gap-2 mb-2">
+              <span className={labelCls}>Base HT</span>
+              <input className={inputCls} value={form.l9b_base} onChange={e => set('l9b_base', e.target.value)} />
+              <input className={cn(inputCls, 'flex-[0.6]')} value={form.l9b_taxe}
                 onChange={e => set('l9b_taxe', e.target.value)} placeholder="Taxe" />
             </div>
-            <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text)', fontStyle: 'italic' }}>
-              Ligne 09 – TVA 5,5% (0105)
-            </div>
-            <div style={fieldRow}>
-              <span style={labelSm}>Base HT</span>
-              <input style={inputSm} value={form.l09_base} onChange={e => set('l09_base', e.target.value)} />
-              <input style={{ ...inputSm, flex: 0.6 }} value={form.l09_taxe}
+
+            <p className="mb-1.5 text-[11px] text-[var(--text)] italic">Ligne 09 – TVA 5,5% (0105)</p>
+            <div className="flex gap-2 mb-2">
+              <span className={labelCls}>Base HT</span>
+              <input className={inputCls} value={form.l09_base} onChange={e => set('l09_base', e.target.value)} />
+              <input className={cn(inputCls, 'flex-[0.6]')} value={form.l09_taxe}
                 onChange={e => set('l09_taxe', e.target.value)} placeholder="Taxe" />
             </div>
+
             <Field label="Ligne 16 TVA brute" field="l16_brute" readOnly />
 
-            <p style={sectionTitle}>TVA déductible (page 3)</p>
+            <SectionTitle>TVA déductible (page 3)</SectionTitle>
             <Field label="L19 Immos (0703)" field="l19_immos" />
             <Field label="L20 Autres (0702)" field="l20_autres" />
             <Field label="L22 Report (8001)" field="l22_report" />
             <Field label="L23 Total déduc." field="l23_total_ded" readOnly />
 
-            <p style={sectionTitle}>Résultat</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <div style={{ flex: 1, background: form.tva_due !== '0' && form.tva_due !== '0.00' ? '#fff3f3' : 'var(--card-bg)',
-                border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', marginBottom: 2 }}>TVA due (8900)</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#ef4444' }}>{Number(form.tva_due).toFixed(0)} €</div>
+            <SectionTitle>Résultat</SectionTitle>
+            <div className="flex gap-2 mb-2">
+              <div className={cn(
+                'flex-1 border border-[var(--border)] rounded-lg px-2.5 py-2',
+                form.tva_due !== '0' && form.tva_due !== '0.00' ? 'bg-red-50 dark:bg-red-900/10' : 'bg-[var(--card-bg)]'
+              )}>
+                <div className="text-[10px] font-semibold text-[var(--text)] uppercase mb-0.5">TVA due (8900)</div>
+                <div className="text-[18px] font-bold text-red-500 tabular-nums">{Number(form.tva_due).toFixed(0)} €</div>
               </div>
-              <div style={{ flex: 1, background: form.credit_tva !== '0' && form.credit_tva !== '0.00' ? '#f0fdf4' : 'var(--card-bg)',
-                border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', marginBottom: 2 }}>Crédit TVA (0705)</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{Number(form.credit_tva).toFixed(0)} €</div>
+              <div className={cn(
+                'flex-1 border border-[var(--border)] rounded-lg px-2.5 py-2',
+                form.credit_tva !== '0' && form.credit_tva !== '0.00' ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'bg-[var(--card-bg)]'
+              )}>
+                <div className="text-[10px] font-semibold text-[var(--text)] uppercase mb-0.5">Crédit TVA (0705)</div>
+                <div className="text-[18px] font-bold text-emerald-600 tabular-nums">{Number(form.credit_tva).toFixed(0)} €</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Actions */}
-        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {msg && <p style={{ fontSize: 12, color: '#ef4444', margin: 0 }}>{msg}</p>}
-          {saved && <p style={{ fontSize: 12, color: '#10b981', margin: 0 }}>✓ Déclaration sauvegardée</p>}
+        <div className="px-[18px] py-3 border-t border-[var(--border)] flex flex-col gap-2">
+          {msg && <p className="text-[12px] text-red-500 m-0">{msg}</p>}
+          {saved && <p className="text-[12px] text-emerald-600 m-0 font-medium">✓ Déclaration sauvegardée</p>}
 
           {form && (
             <>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => generatePdf()} disabled={loading} style={{ ...btn(false), flex: 1, fontSize: 12 }}>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generatePdf()}
+                  disabled={loading}
+                  className="flex-1 text-[12px]"
+                >
                   {loading ? '…' : '⟳ Actualiser PDF'}
-                </button>
-                <button onClick={handleDownload} disabled={loading} style={{ ...btn(false), flex: 1, fontSize: 12 }}>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownload}
+                  disabled={loading}
+                  className="flex-1 text-[12px]"
+                >
                   ↓ Télécharger
-                </button>
+                </Button>
               </div>
-              <button onClick={handleSave} disabled={saving} style={btn(true)}>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full bg-gradient-to-br from-[#aa3bff] to-[#7c3aed] text-white border-0 hover:opacity-90 disabled:opacity-60"
+              >
                 {saving ? 'Enregistrement…' : 'Enregistrer en base'}
-              </button>
+              </Button>
             </>
           )}
         </div>
