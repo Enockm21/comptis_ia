@@ -39,6 +39,12 @@ const NAV = [
       <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
     </svg>
   )},
+  { to: '/etats-financiers', label: 'États financiers', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M8 17V13M12 17V9M16 17V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  )},
   { to: '/tva', label: 'TVA', icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <path d="M9 14l6-6M10 9h.01M15 14h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
