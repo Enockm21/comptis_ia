@@ -251,6 +251,36 @@ class TVADeclarationModel(Base):
     payee_le: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
 
 
+class GrandLivreModel(Base):
+    __tablename__ = "grand_livre"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(
+        sa.Uuid, sa.ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    journal_code: Mapped[str] = mapped_column(sa.String(10), nullable=False)
+    journal_lib: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    ecriture_num: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    ecriture_date: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    compte_num: Mapped[str] = mapped_column(sa.String(20), nullable=False)
+    compte_lib: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    comp_aux_num: Mapped[str] = mapped_column(sa.String(20), nullable=False, server_default="")
+    comp_aux_lib: Mapped[str] = mapped_column(sa.String(255), nullable=False, server_default="")
+    piece_ref: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    piece_date: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    ecriture_lib: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    debit: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False, server_default="0")
+    credit: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False, server_default="0")
+    ecriture_let: Mapped[str] = mapped_column(sa.String(10), nullable=False, server_default="")
+    date_let: Mapped[dt_date | None] = mapped_column(sa.Date, nullable=True)
+    valid_date: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    montantdevise: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False, server_default="0")
+    idevise: Mapped[str] = mapped_column(sa.String(3), nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), nullable=False, default=_now
+    )
+
+
 class CA3DeclarationModel(Base):
     __tablename__ = "ca3_declarations"
 

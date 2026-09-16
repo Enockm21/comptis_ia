@@ -12,6 +12,7 @@ from comptis.interface.api.admin.comptabilite.router import router as admin_comp
 from comptis.interface.api.admin.integrations.router import router as admin_integrations_router
 from comptis.interface.api.auth.router import router as auth_router
 from comptis.interface.api.categorization.router import router as categorization_router
+from comptis.interface.api.comptabilite.router import router as comptabilite_router
 from comptis.interface.api.ecritures.router import router as ecritures_router
 from comptis.interface.api.plan_comptable_api.router import router as plan_comptable_router
 from comptis.interface.api.rapprochement.router import router as rapprochement_router
@@ -29,6 +30,7 @@ app.include_router(categorization_router)
 app.include_router(ecritures_router)
 app.include_router(plan_comptable_router)
 app.include_router(tva_router)
+app.include_router(comptabilite_router)
 
 
 @app.get("/health")
