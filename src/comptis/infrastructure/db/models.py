@@ -309,3 +309,22 @@ class CA3DeclarationModel(Base):
     credit_tva: Mapped[Decimal | None] = mapped_column(sa.Numeric(15, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
     updated_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now, onupdate=_now)
+
+
+class FactureModel(Base):
+    __tablename__ = "factures"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False, index=True)
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="brouillon")
+    fournisseur: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    date_facture: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    numero_facture: Mapped[str] = mapped_column(sa.String(100), nullable=False, default="")
+    montant_ht: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    taux_tva: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), nullable=False, default=20)
+    montant_tva: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    montant_ttc: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    compte_charge: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="606100")
+    journal_code: Mapped[str] = mapped_column(sa.String(10), nullable=False, default="HA")
+    notes: Mapped[str] = mapped_column(sa.Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)

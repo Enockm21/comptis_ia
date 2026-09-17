@@ -379,6 +379,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "anthropic" },
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "cryptography" },
@@ -415,6 +416,7 @@ mcp = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.13" },
+    { name = "anthropic", specifier = ">=0.116.0" },
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "bcrypt", specifier = ">=4.1" },
     { name = "cryptography", specifier = ">=42.0" },
