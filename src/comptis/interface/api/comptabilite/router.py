@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from calendar import monthrange
 from datetime import date
 from decimal import Decimal
 
@@ -15,6 +16,7 @@ from comptis.application.comptabilite.use_cases import (
     CalculerResultat,
     ExporterFEC,
     ImporterFEC,
+    PosteBalance,
 )
 from comptis.infrastructure.db.comptabilite_repository import SQLAlchemyGrandLivreRepository
 from comptis.infrastructure.db.repositories import SQLAlchemyTenantRepository
@@ -163,4 +165,91 @@ async def compte_de_resultat(
     return ResultatResponse(
         postes=[PosteResultatSchema(**p.__dict__) for p in postes],
         resultat_net=resultat,
+    )
+
+
+# ── KPI Dashboard ──────────────────────────────────────────────────────────────
+
+class MonthKPI(BaseModel):
+    mois: str          # YYYY-MM
+    charges: Decimal
+    produits: Decimal
+    resultat: Decimal
+
+
+class DashboardKPI(BaseModel):
+    charges_mois: Decimal
+    produits_mois: Decimal
+    resultat_mois: Decimal
+    tresorerie: Decimal
+    resultat_ytd: Decimal
+    monthly: list[MonthKPI]
+
+
+def _compute_kpis_from_balance(postes: list[PosteBalance], date_debut: date, date_fin: date) -> tuple[Decimal, Decimal]:
+    charges = produits = Decimal("0")
+    for p in postes:
+        cl = p.compte_num[0] if p.compte_num else ""
+        if cl == "6":
+            charges += p.total_debit - p.total_credit
+        elif cl == "7":
+            produits += p.total_credit - p.total_debit
+    return charges, produits
+
+
+@router.get("/kpi", response_model=DashboardKPI)
+async def dashboard_kpi(
+    tenant_id: uuid.UUID = Query(...),
+    user_id: uuid.UUID = Depends(require_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> DashboardKPI:
+    await _get_tenant_and_set_context(tenant_id, user_id, session)
+    repo = SQLAlchemyGrandLivreRepository(session)
+    today = date.today()
+
+    # Current month bounds
+    mois_debut = date(today.year, today.month, 1)
+    mois_fin = date(today.year, today.month, monthrange(today.year, today.month)[1])
+
+    # YTD bounds
+    ytd_debut = date(today.year, 1, 1)
+
+    # Current month balance
+    bal_mois = await CalculerBalance(repo=repo).execute(tenant_id, mois_debut, mois_fin)
+    charges_mois, produits_mois = _compute_kpis_from_balance(bal_mois, mois_debut, mois_fin)
+
+    # YTD
+    bal_ytd = await CalculerBalance(repo=repo).execute(tenant_id, ytd_debut, today)
+    charges_ytd, produits_ytd = _compute_kpis_from_balance(bal_ytd, ytd_debut, today)
+    resultat_ytd = produits_ytd - charges_ytd
+
+    # Trésorerie (classe 5) — solde au jour
+    tresorerie = Decimal("0")
+    for p in bal_ytd:
+        if p.compte_num.startswith("5"):
+            tresorerie += p.total_debit - p.total_credit
+
+    # 6 derniers mois
+    monthly: list[MonthKPI] = []
+    for i in range(5, -1, -1):
+        mn = today.month - i
+        yr = today.year
+        while mn <= 0:
+            mn += 12; yr -= 1
+        d1 = date(yr, mn, 1)
+        d2 = date(yr, mn, monthrange(yr, mn)[1])
+        bal = await CalculerBalance(repo=repo).execute(tenant_id, d1, d2)
+        ch, pr = _compute_kpis_from_balance(bal, d1, d2)
+        monthly.append(MonthKPI(
+            mois=f"{yr:04d}-{mn:02d}",
+            charges=ch, produits=pr, resultat=pr - ch,
+        ))
+
+    return DashboardKPI(
+        charges_mois=charges_mois,
+        produits_mois=produits_mois,
+        resultat_mois=produits_mois - charges_mois,
+        tresorerie=tresorerie,
+        resultat_ytd=resultat_ytd,
+        monthly=monthly,
     )
