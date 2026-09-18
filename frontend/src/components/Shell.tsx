@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { clearToken } from '../lib/auth'
 import { useTenant } from '../lib/TenantContext'
 import { cn } from '@/lib/utils'
+import AlertesPanel from './AlertesPanel'
 
 const NAV = [
   { to: '/dashboard', label: 'Tableau de bord', icon: (
@@ -158,6 +159,9 @@ export default function Shell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+
+        {/* Alertes */}
+        <AlertesPanel />
 
         {/* Logout */}
         <div className="px-3.5 py-3 border-t border-[var(--border)]">
