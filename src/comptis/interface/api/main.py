@@ -15,6 +15,7 @@ from comptis.interface.api.categorization.router import router as categorization
 from comptis.interface.api.comptabilite.router import router as comptabilite_router
 from comptis.interface.api.ecritures.router import router as ecritures_router
 from comptis.interface.api.facturation.router import router as facturation_router
+from comptis.interface.api.facturation_client.router import router as facturation_client_router
 from comptis.interface.api.plan_comptable_api.router import router as plan_comptable_router
 from comptis.interface.api.rapprochement.router import router as rapprochement_router
 from comptis.interface.api.tenancy.router import router as tenancy_router
@@ -33,6 +34,7 @@ app.include_router(plan_comptable_router)
 app.include_router(tva_router)
 app.include_router(comptabilite_router)
 app.include_router(facturation_router)
+app.include_router(facturation_client_router)
 
 
 @app.get("/health")

@@ -328,3 +328,33 @@ class FactureModel(Base):
     journal_code: Mapped[str] = mapped_column(sa.String(10), nullable=False, default="HA")
     notes: Mapped[str] = mapped_column(sa.Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+
+
+class FactureClientModel(Base):
+    __tablename__ = "factures_client"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False, index=True)
+    type: Mapped[str] = mapped_column(sa.String(10), nullable=False, default="facture")
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="brouillon")
+    numero: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    date_emission: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    date_echeance: Mapped[dt_date | None] = mapped_column(sa.Date, nullable=True)
+    client_nom: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    client_adresse: Mapped[str] = mapped_column(sa.Text, nullable=False, default="")
+    client_email: Mapped[str] = mapped_column(sa.String(255), nullable=False, default="")
+    notes: Mapped[str] = mapped_column(sa.Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
+
+
+class LigneFactureClientModel(Base):
+    __tablename__ = "lignes_facture_client"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    facture_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False, index=True)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    description: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    quantite: Mapped[Decimal] = mapped_column(sa.Numeric(10, 3), nullable=False, default=Decimal("1"))
+    prix_unitaire: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    taux_tva: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), nullable=False, default=Decimal("20"))
+    ordre: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
