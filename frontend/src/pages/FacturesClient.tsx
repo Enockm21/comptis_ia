@@ -234,6 +234,7 @@ function FactureRow({ f, tenantId, onDeleted, onStatutChanged }: {
   onStatutChanged: (id: string, s: string) => void
 }) {
   const [downloading, setDownloading] = useState(false)
+  const [relanceText, setRelanceText] = useState<string | null>(null)
 
   const downloadPdf = async () => {
     setDownloading(true)
@@ -263,10 +264,27 @@ function FactureRow({ f, tenantId, onDeleted, onStatutChanged }: {
     onDeleted(f.id)
   }
 
+  const genRelance = () => {
+    const echeance = f.date_echeance ? fmtDate(f.date_echeance) : 'échue'
+    const text = `Objet : Relance facture ${f.numero} — ${fmtEur(f.total_ttc)}\n\nBonjour,\n\nSauf erreur de notre part, notre facture n° ${f.numero} d'un montant de ${fmtEur(f.total_ttc)} TTC, émise le ${fmtDate(f.date_emission)} et arrivée à échéance le ${echeance}, n'a pas encore été réglée.\n\nNous vous remercions de bien vouloir procéder au paiement dans les meilleurs délais, ou de nous contacter si vous avez des questions.\n\nCordialement`
+    setRelanceText(text)
+    navigator.clipboard?.writeText(text).catch(() => {})
+  }
+
   const st = STATUTS[f.statut] ?? { label: f.statut, classes: 'bg-zinc-100 text-zinc-600' }
 
   return (
-    <div className="flex items-start gap-4 px-5 py-4 bg-[var(--card-bg)]">
+    <div className="bg-[var(--card-bg)]">
+    {relanceText && (
+      <div className="mx-5 mb-3 mt-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-400 m-0">Email de relance (copié dans le presse-papier)</p>
+          <button onClick={() => setRelanceText(null)} className="text-amber-600 hover:text-amber-900 text-[12px]">✕</button>
+        </div>
+        <pre className="text-[11px] text-amber-900 dark:text-amber-300 whitespace-pre-wrap font-sans m-0">{relanceText}</pre>
+      </div>
+    )}
+    <div className="flex items-start gap-4 px-5 py-4">
       {/* Left */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -309,6 +327,12 @@ function FactureRow({ f, tenantId, onDeleted, onStatutChanged }: {
           </button>
         )}
         {f.statut === 'envoyee' && (
+          <button onClick={genRelance}
+            className="text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:underline">
+            📧 Relance
+          </button>
+        )}
+        {f.statut === 'envoyee' && (
           <button onClick={() => setStatut('payee')}
             className="text-[11px] font-medium text-emerald-600 hover:underline">
             ✓ Payée
@@ -319,6 +343,7 @@ function FactureRow({ f, tenantId, onDeleted, onStatutChanged }: {
           Supprimer
         </button>
       </div>
+    </div>
     </div>
   )
 }

@@ -17,6 +17,7 @@ import CA3Editor from './pages/CA3Editor'
 import EtatsFinanciers from './pages/EtatsFinanciers'
 import Factures from './pages/Factures'
 import FacturesClient from './pages/FacturesClient'
+import NotesFrais from './pages/NotesFrais'
 
 function RequireAuth({ children }: { children: ReactNode }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -50,6 +51,7 @@ function App() {
         <Route path="/etats-financiers" element={<AppShell><EtatsFinanciers /></AppShell>} />
         <Route path="/factures" element={<AppShell><Factures /></AppShell>} />
         <Route path="/facturation" element={<AppShell><FacturesClient /></AppShell>} />
+        <Route path="/notes-frais" element={<AppShell><NotesFrais /></AppShell>} />
         <Route
           path="/admin/integrations"
           element={

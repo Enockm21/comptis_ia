@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface MonthKPI { mois: string; charges: number; produits: number; resultat: number }
+interface ChargePoste { label: string; montant: number }
 interface DashboardKPI {
   charges_mois: number
   produits_mois: number
@@ -16,6 +17,7 @@ interface DashboardKPI {
   tresorerie: number
   resultat_ytd: number
   monthly: MonthKPI[]
+  charges_ytd_detail: ChargePoste[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -51,6 +53,37 @@ function Sparkline({ data }: { data: MonthKPI[] }) {
           </g>
         )
       })}
+    </svg>
+  )
+}
+
+// ── Donut chart ────────────────────────────────────────────────────────────────
+
+const PALETTE = ['#7c3aed','#a855f7','#ec4899','#ef4444','#f97316','#eab308','#22c55e','#06b6d4']
+
+function Donut({ data }: { data: ChargePoste[] }) {
+  if (!data.length) return null
+  const total = data.reduce((s, d) => s + d.montant, 0)
+  if (total === 0) return null
+  const R = 52, r = 32, cx = 60, cy = 60
+  let angle = -Math.PI / 2
+  const slices = data.map((d, i) => {
+    const pct = d.montant / total
+    const a1 = angle, a2 = angle + pct * Math.PI * 2
+    angle = a2
+    const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1)
+    const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2)
+    const ix1 = cx + r * Math.cos(a1), iy1 = cy + r * Math.sin(a1)
+    const ix2 = cx + r * Math.cos(a2), iy2 = cy + r * Math.sin(a2)
+    const large = pct > 0.5 ? 1 : 0
+    return { d: `M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${r},${r} 0 ${large},0 ${ix1},${iy1}Z`, color: PALETTE[i % PALETTE.length], pct }
+  })
+  return (
+    <svg width={120} height={120} viewBox="0 0 120 120" className="shrink-0">
+      {slices.map((s, i) => (
+        <path key={i} d={s.d} fill={s.color} opacity={0.85} />
+      ))}
+      <circle cx={cx} cy={cy} r={20} fill="var(--card-bg)" />
     </svg>
   )
 }
@@ -216,6 +249,29 @@ export default function Dashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* Donut dépenses par compte YTD */}
+      {hasKpi && kpi!.charges_ytd_detail.length > 0 && (
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-xl px-5 py-4 mb-7">
+          <p className="text-[12px] font-semibold text-[var(--text)] uppercase tracking-[0.05em] m-0 mb-3">
+            Répartition des charges YTD
+          </p>
+          <div className="flex items-start gap-5">
+            <Donut data={kpi!.charges_ytd_detail} />
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-2">
+              {kpi!.charges_ytd_detail.map((d, i) => (
+                <div key={d.label} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: PALETTE[i % PALETTE.length] }} />
+                  <span className="text-[11px] text-[var(--text)]">{d.label}</span>
+                  <span className="text-[11px] font-semibold text-[var(--text-h)] tabular-nums">
+                    {fmt.format(d.montant)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Workflow stats (écritures) */}

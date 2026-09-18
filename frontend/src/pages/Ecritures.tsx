@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTenant } from '../lib/TenantContext'
 import { listEcritures, type Ecriture } from '../lib/ecritures'
+import { fetchWithAuth } from '../lib/http'
 import { cn } from '@/lib/utils'
 
 const fmt = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
@@ -32,6 +33,25 @@ export default function Ecritures() {
   const [statut, setStatut] = useState('')
   const [fetching, setFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<string | null>(null)
+  const csvRef = useRef<HTMLInputElement>(null)
+
+  const handleCSV = async (file: File) => {
+    if (!selected) return
+    setImporting(true); setImportMsg(null)
+    try {
+      const fd = new FormData(); fd.append('file', file)
+      const r = await fetchWithAuth(`/ecritures/import-csv?tenant_id=${selected.id}`, { method: 'POST', body: fd })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.detail || 'Erreur')
+      setImportMsg(`${data.importees} écritures importées${data.ignorees ? `, ${data.ignorees} ignorées (doublons)` : ''}.`)
+      // Refresh list
+      listEcritures(selected.id, statut || undefined).then(setEcritures).catch(() => {})
+    } catch (e: unknown) {
+      setImportMsg(`Erreur : ${e instanceof Error ? e.message : 'inconnue'}`)
+    } finally { setImporting(false) }
+  }
 
   useEffect(() => {
     if (!selected) return
@@ -49,6 +69,23 @@ export default function Ecritures() {
         <div>
           <h1 className="text-[22px] font-bold text-[var(--text-h)] m-0 mb-1 tracking-[-0.4px]">Écritures</h1>
           <p className="text-[14px] text-[var(--text)] m-0">{selected?.name ?? '—'}</p>
+        </div>
+
+        {/* Import CSV */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => csvRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[var(--border)] text-[13px] font-medium text-[var(--text)] hover:bg-[var(--code-bg)] transition-colors disabled:opacity-50"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            {importing ? 'Import…' : 'Import CSV'}
+          </button>
+          <input ref={csvRef} type="file" accept=".csv,.txt" className="hidden"
+            onChange={e => { if (e.target.files?.[0]) handleCSV(e.target.files[0]); e.target.value = '' }} />
         </div>
 
         {/* Filter tabs */}
@@ -75,6 +112,15 @@ export default function Ecritures() {
       {error && (
         <div className="bg-red-50 text-red-800 rounded-lg px-4 py-2.5 mb-4 text-[13px] dark:bg-red-900/20 dark:text-red-400">
           {error}
+        </div>
+      )}
+      {importMsg && (
+        <div className={cn('rounded-lg px-4 py-2.5 mb-4 text-[13px]',
+          importMsg.startsWith('Erreur')
+            ? 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+            : 'bg-emerald-50 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
+        )}>
+          {importMsg}
         </div>
       )}
 

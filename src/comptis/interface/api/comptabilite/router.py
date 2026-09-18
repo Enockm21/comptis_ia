@@ -177,6 +177,11 @@ class MonthKPI(BaseModel):
     resultat: Decimal
 
 
+class ChargePoste(BaseModel):
+    label: str
+    montant: Decimal
+
+
 class DashboardKPI(BaseModel):
     charges_mois: Decimal
     produits_mois: Decimal
@@ -184,6 +189,7 @@ class DashboardKPI(BaseModel):
     tresorerie: Decimal
     resultat_ytd: Decimal
     monthly: list[MonthKPI]
+    charges_ytd_detail: list[ChargePoste]
 
 
 def _compute_kpis_from_balance(postes: list[PosteBalance], date_debut: date, date_fin: date) -> tuple[Decimal, Decimal]:
@@ -245,6 +251,18 @@ async def dashboard_kpi(
             charges=ch, produits=pr, resultat=pr - ch,
         ))
 
+    # Charges par sous-compte classe 6 (for donut chart, dedupe top 8)
+    charges_detail: dict[str, Decimal] = {}
+    for p in bal_ytd:
+        if p.compte_num.startswith("6"):
+            amt = p.total_debit - p.total_credit
+            if amt > 0:
+                label = p.compte_num[:4] + " " + p.compte_lib[:20] if p.compte_lib else p.compte_num[:4]
+                charges_detail[label] = charges_detail.get(label, Decimal("0")) + amt
+
+    # Top 8 charges, trier desc
+    top_charges = sorted(charges_detail.items(), key=lambda x: x[1], reverse=True)[:8]
+
     return DashboardKPI(
         charges_mois=charges_mois,
         produits_mois=produits_mois,
@@ -252,4 +270,5 @@ async def dashboard_kpi(
         tresorerie=tresorerie,
         resultat_ytd=resultat_ytd,
         monthly=monthly,
+        charges_ytd_detail=[ChargePoste(label=k, montant=v) for k, v in top_charges],
     )

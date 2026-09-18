@@ -358,3 +358,22 @@ class LigneFactureClientModel(Base):
     prix_unitaire: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
     taux_tva: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), nullable=False, default=Decimal("20"))
     ordre: Mapped[int] = mapped_column(sa.Integer, nullable=False, default=0)
+
+
+class NoteFraisModel(Base):
+    __tablename__ = "notes_frais"
+
+    id: Mapped[UUID] = mapped_column(sa.Uuid, primary_key=True, default=_uuid)
+    tenant_id: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False, index=True)
+    submitted_by: Mapped[UUID] = mapped_column(sa.Uuid, nullable=False)
+    statut: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="soumis")
+    date_depense: Mapped[dt_date] = mapped_column(sa.Date, nullable=False)
+    fournisseur: Mapped[str] = mapped_column(sa.Text, nullable=False)
+    description: Mapped[str] = mapped_column(sa.Text, nullable=False, default="")
+    montant_ht: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    taux_tva: Mapped[Decimal] = mapped_column(sa.Numeric(5, 2), nullable=False, default=Decimal("20"))
+    montant_tva: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    montant_ttc: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    compte_charge: Mapped[str] = mapped_column(sa.String(20), nullable=False, default="625000")
+    categorie: Mapped[str] = mapped_column(sa.String(100), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, default=_now)
